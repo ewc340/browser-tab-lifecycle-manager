@@ -41,6 +41,13 @@ privacy policy, a reproducible `dist.zip`, and a documented support/feedback loo
 
 ## 2. Assumed decisions
 
+> **Superseded in part.** The developer has since answered the open questions; see
+> [`DECISIONS.md`](DECISIONS.md), which takes precedence over this table. The material changes are:
+> `sleepAfterMinutes` default is **60** (not 120); locking still permits sleeping but is customizable via
+> a per-tab `keepLoaded` toggle plus a global `lockImpliesKeepLoaded` setting; distribution targets
+> **private/small-group** first, so Milestone 5's store-listing and legal work is deferred; and the
+> product name is **Browser Tab Lifecycle Manager**, kept changeable in one place.
+
 These are the answers this plan implements. If the developer disagrees with any row, only the cited
 milestone tasks change.
 
@@ -54,11 +61,11 @@ milestone tasks change.
 | Cross-restart activity | URL-keyed `activityLedger` (LRU 2000) | M2 |
 | Browser downtime | Not counted as inactivity; 30-min settling period | M2 |
 | Blast radius | ≤10 closes/sweep, ≤25/hour, ≤50 discards/sweep, chunks of 10 | M2 |
-| Extra controls | "Keep loaded", "Snooze", per-host skip lists | M1/M2 |
-| `sleepAfterMinutes` default | 120 | M0 |
+| Extra controls | "Keep loaded" (+ global `lockImpliesKeepLoaded`), "Snooze", per-host skip lists | M1/M2 |
+| `sleepAfterMinutes` default | **60** (customizable) | M0 |
 | Theme | Light + dark | M1 |
 | Panel opening | `setPanelBehavior({ openPanelOnActionClick: true })`; onboarding in a tab | M0/M2 |
-| Distribution | Draft → trusted testers → unlisted → public 10/50/100% | M5/M6 |
+| Distribution | **Private / small group first**; public listing deferred | M5/M6 |
 | Trader status | Non-trader | M5 |
 | License | MIT, public GitHub repo, Issues for support | M5 |
 
@@ -1038,7 +1045,7 @@ the behavioral additions make the extension *less* likely to remove a tab.
 | # | Risk | Likelihood | Impact | Mitigation |
 | --- | --- | --- | --- | --- |
 | R1 | **Mass unintended closure** after long downtime, a clock jump, a resume-from-pause, or an update mid-grace | Medium | Critical (data loss + trust destroyed + 1-star reviews with no recourse) | Settling period; downtime credit; per-sweep and per-hour caps; 24 h minimum tab age; pending closures cancelled on update; report-only default; recovery snapshots; clamped negative deltas; property tests on every exclusion |
-| R2 | **Sleeping loses unsaved user work** or breaks background app notifications (WebSocket teardown) | High | High (users blame the extension for losing a draft) | `sleepAfterMinutes` default 120; seeded `neverSleepHosts`; `keepLoaded` + `autoDiscardable:false`; never discard `status === "loading"`; explicit onboarding copy; verification tasks J1/J2 gate the defaults |
+| R2 | **Sleeping loses unsaved user work** or breaks background app notifications (WebSocket teardown) | High | High (users blame the extension for losing a draft) | seeded `neverSleepHosts`; `keepLoaded` + `autoDiscardable:false` (and the global `lockImpliesKeepLoaded` option); never discard `status === "loading"`; explicit onboarding copy; verification tasks J1/J2 gate the copy and the seed list. Note the default `sleepAfterMinutes` is **60** per `DECISIONS.md`, so these mitigations carry more weight than they would at 120 |
 | R3 | **`storage.local` 10 MB quota exhausted**, causing the pre-close recovery write to fail | Medium | High (closures without recoverability) | Snapshot caps; no stored favicon URLs; chunked activity keys; byte budget with trim-and-retry; on write failure abort the sweep and pause automation; quota test J11 |
 | R4 | **Chrome API behavior differs from assumption** (`discard` semantics, `lastAccessed` after restore, `reload` on a discarded tab, side-panel toggle, `beforeunload` on `remove`) | Medium | Medium–High (silent feature breakage, wrong activity feed) | The 15-item verification checklist in the review's Section J is executed in M0/M2 and recorded in `docs/API_VERIFICATION.md`; every discard/close result is verified rather than assumed; the sweep re-queries rather than trusting events |
 | R5 | **Permission set frozen wrong at v1.0** — later adding `favicon`, `sessions`, or `notifications` disables the extension for every user until they re-accept | Medium | High (installed-base attrition, and many users never re-enable) | Decide the full set before v1.0; include `favicon` now; verify warning collapsing with `getPermissionWarningsByManifest` (J9); CI baseline diff on the permission list; `PERMISSIONS_CHANGELOG.md` |
