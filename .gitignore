@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+*.zip
+.DS_Store
+.env
+.env.local
+.vite/
+artifacts/
