@@ -232,7 +232,10 @@ export interface RuntimeState {
   /** While in the future, closures are computed and reported but never executed. */
   reportOnlyUntil: number;
   lastKnownVersion: string;
+  /** Version that triggered the what's-new banner after an update. */
   whatsNewVersion: string;
+  /** Last whats-new version the user dismissed in the panel. */
+  whatsNewSeenVersion: string;
 }
 
 export interface DiagnosticEntry {

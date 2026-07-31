@@ -153,6 +153,7 @@ try {
           reportOnlyUntil: now + 7 * 24 * 60 * 60 * 1000,
           lastKnownVersion: chrome.runtime.getManifest().version,
           whatsNewVersion: chrome.runtime.getManifest().version,
+          whatsNewSeenVersion: chrome.runtime.getManifest().version,
         },
       });
       return 'onboarding-stub-ok';

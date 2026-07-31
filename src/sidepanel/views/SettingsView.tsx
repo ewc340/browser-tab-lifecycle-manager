@@ -165,10 +165,28 @@ export function SettingsView({ state, onSettingsChanged }: SettingsViewProps) {
   const { send } = useMessaging();
   const { settings } = state;
   const automationInert = !settings.onboardingCompleted;
+  const [diagnosticPreview, setDiagnosticPreview] = useState<string | null>(null);
+  const [usagePreview, setUsagePreview] = useState<string | null>(null);
+  const [importJson, setImportJson] = useState("");
 
   const patchSettings = async (patch: Partial<ExtensionSettings>) => {
     await send({ type: "UPDATE_SETTINGS", patch });
     onSettingsChanged();
+  };
+
+  const copyText = async (text: string) => {
+    await navigator.clipboard.writeText(text);
+  };
+
+  const exportSettings = async (includeRecovery: boolean) => {
+    const { json } = await send({ type: "EXPORT_DATA", includeRecovery });
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "tab-lifecycle-settings.json";
+    anchor.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -288,6 +306,14 @@ export function SettingsView({ state, onSettingsChanged }: SettingsViewProps) {
 
       <section className="settings-section">
         <h2 className="settings-section__title">History</h2>
+        <label className="settings-toggle">
+          <input
+            type="checkbox"
+            checked={settings.storeClosedTabUrls}
+            onChange={(event) => void patchSettings({ storeClosedTabUrls: event.target.checked })}
+          />
+          <span>Store closed-tab URLs in recovery (off = title-only records)</span>
+        </label>
         <label className="settings-field">
           <span className="settings-field__label">Activity retention (days)</span>
           <input
@@ -331,6 +357,88 @@ export function SettingsView({ state, onSettingsChanged }: SettingsViewProps) {
             <option value="dark">Dark</option>
           </select>
         </label>
+      </section>
+
+      <section className="settings-section">
+        <h2 className="settings-section__title">Data &amp; diagnostics</h2>
+        <div className="settings-actions">
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={() =>
+              void send({ type: "GET_DIAGNOSTICS", redaction: "HOSTNAMES" }).then((result) =>
+                setDiagnosticPreview(result.text),
+              )
+            }
+          >
+            Preview diagnostic report
+          </button>
+          {diagnosticPreview !== null && (
+            <>
+              <pre className="settings-preview">{diagnosticPreview}</pre>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => void copyText(diagnosticPreview)}
+              >
+                Copy diagnostic report
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={() =>
+              void send({ type: "GET_USAGE_SUMMARY" }).then((result) =>
+                setUsagePreview(result.text),
+              )
+            }
+          >
+            Preview usage summary
+          </button>
+          {usagePreview !== null && (
+            <>
+              <pre className="settings-preview">{usagePreview}</pre>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => void copyText(usagePreview)}
+              >
+                Copy usage summary
+              </button>
+            </>
+          )}
+          <button type="button" className="btn btn--ghost" onClick={() => void exportSettings(false)}>
+            Export settings JSON
+          </button>
+          <button type="button" className="btn btn--ghost" onClick={() => void exportSettings(true)}>
+            Export settings + recovery
+          </button>
+        </div>
+        <label className="settings-field">
+          <span className="settings-field__label">Import settings JSON</span>
+          <textarea
+            className="settings-import"
+            rows={4}
+            value={importJson}
+            onChange={(event) => setImportJson(event.target.value)}
+            placeholder='{"settings": { ... }}'
+          />
+        </label>
+        <button
+          type="button"
+          className="btn btn--primary"
+          disabled={importJson.trim().length === 0}
+          onClick={() =>
+            void send({ type: "IMPORT_SETTINGS", json: importJson })
+              .then(() => {
+                setImportJson("");
+                onSettingsChanged();
+              })
+          }
+        >
+          Import settings
+        </button>
       </section>
 
       <section className="settings-section">

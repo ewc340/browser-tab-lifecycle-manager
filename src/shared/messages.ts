@@ -44,6 +44,8 @@ export type ExtensionRequest =
   | { type: "EXPORT_DATA"; includeRecovery: boolean }
   | { type: "IMPORT_SETTINGS"; json: string }
   | { type: "GET_DIAGNOSTICS"; redaction: "HOSTNAMES" | "FULL" }
+  | { type: "GET_USAGE_SUMMARY" }
+  | { type: "DISMISS_WHATS_NEW" }
   | { type: "OPEN_SHORTCUTS_PAGE" };
 
 export type RequestType = ExtensionRequest["type"];
@@ -78,6 +80,8 @@ export interface ResponseData {
   EXPORT_DATA: { json: string };
   IMPORT_SETTINGS: { settings: ExtensionSettings };
   GET_DIAGNOSTICS: { text: string };
+  GET_USAGE_SUMMARY: { text: string };
+  DISMISS_WHATS_NEW: { runtime: import("./types.ts").RuntimeState };
   OPEN_SHORTCUTS_PAGE: null;
 }
 

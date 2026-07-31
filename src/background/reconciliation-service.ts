@@ -10,6 +10,7 @@ import { reconcileFromBrowser } from "./tab-repository.ts";
 import { updateSettings } from "./settings-service.ts";
 import { loadRuntimeState, saveRuntimeState } from "./runtime-state-service.ts";
 import { ensureLifecycleAlarm } from "./alarm-service.ts";
+import { runRetentionMaintenance } from "./maintenance-service.ts";
 import { appendActivityEvent } from "./activity-service.ts";
 import { runLifecycleSweep } from "./lifecycle-sweep.ts";
 import * as log from "../shared/log.ts";
@@ -64,6 +65,7 @@ export async function runReconciliation(now: number): Promise<void> {
   const { putRecords } = await import("./tab-repository.ts");
   await putRecords(records);
 
+  await runRetentionMaintenance(now);
   await runLifecycleSweep({ trigger: "reconciliation" });
 }
 
