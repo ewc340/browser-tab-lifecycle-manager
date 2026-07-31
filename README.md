@@ -12,9 +12,7 @@ A Chrome (Manifest V3) extension that automatically manages tab clutter and memo
 2. `npm run build`
 3. Open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and select the `dist/` folder.
 
-**`dist/` is build output** (gitignored). You must run `npm run build` first. The last step prints `manifest.json written (…)`. If that line is missing, `dist/manifest.json` was not created — see [Troubleshooting](#troubleshooting) below.
-
-Chrome 121 or later is required.
+Chrome 121 or later is required. The floor comes from `tabs.Tab.lastAccessed`, which the extension uses to bootstrap each tab's activity timestamp; on older versions inactivity tracking would silently misbehave.
 
 ---
 
@@ -74,38 +72,6 @@ docs/
 - No telemetry or analytics.
 - All data (tab records, settings, activity log) is stored locally in `chrome.storage.session` and `chrome.storage.local`.
 - Incognito windows are not managed and not tracked.
-
----
-
-## Troubleshooting
-
-### "Manifest file is missing or unreadable" in Chrome
-
-1. Confirm you selected the **`dist/`** folder, not the repo root.
-2. Run a full build and check the last line of output:
-
-   ```bash
-   npm run build
-   ```
-
-   You should see: `manifest.json written (Browser Tab Lifecycle Manager v0.1.0)`
-
-3. If that line is **missing**, the manifest step failed. Run it alone to see the error:
-
-   ```bash
-   npm run build:manifest
-   ```
-
-4. Common causes:
-   - **`npm install` not run** — `tsx` (used to generate the manifest) is a dev dependency.
-   - **Build stopped early** — a typecheck or Vite error prevents the manifest step from running; scroll up in the build log.
-   - **Only ran `npm run dev`** — that rebuilds JS but does not write `manifest.json`. Run `npm run build` at least once.
-
-5. Verify the file exists:
-
-   ```bash
-   ls -la dist/manifest.json
-   ```
 
 ---
 
