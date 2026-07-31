@@ -21,6 +21,7 @@
     "verify": "node scripts/audit-bundle.mjs",
     "package": "npm run build && npm run verify && node scripts/zip.mjs",
     "smoke": "node scripts/smoke-test.mjs",
+    "smoke:lifecycle": "node scripts/lifecycle-smoke-test.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",

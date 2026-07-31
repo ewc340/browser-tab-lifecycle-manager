@@ -1,13 +1,35 @@
 /**
- * Onboarding page shell — Milestone 0.
- *
- * Opened automatically on first install (reason === "install"). Shows the
- * product identity and explains that automatic management is currently off.
- * The enable flow arrives in Milestone 2 once the lifecycle engine is complete.
+ * Onboarding page — enable automatic management and report-only mode.
  */
+import { useState } from "react";
 import { PRODUCT_NAME, PRODUCT_TAGLINE } from "../shared/product.ts";
+import { DEFAULT_SETTINGS } from "../shared/defaults.ts";
+import { useMessaging } from "../sidepanel/hooks/useMessaging.ts";
 
 export function Onboarding() {
+  const { send } = useMessaging();
+  const [reportOnly, setReportOnly] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const enable = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await send({
+        type: "COMPLETE_ONBOARDING",
+        enableAutomation: true,
+        reportOnlyDays: reportOnly ? 7 : 0,
+      });
+      setDone(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not complete onboarding.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="onboarding">
       <header className="onboarding__header">
@@ -17,36 +39,80 @@ export function Onboarding() {
 
       <main className="onboarding__main">
         <section className="onboarding__section">
-          <h2>Automatic management is currently <strong>OFF</strong></h2>
+          <h2>How it works</h2>
           <p>
-            {PRODUCT_NAME} is installed and watching your tabs. It will not sleep or close any tabs
-            automatically until you enable it during onboarding.
+            Background tabs that stay inactive are put to sleep to save memory. Tabs that remain
+            unused for a long time can be closed automatically, with a recoverable history.
           </p>
           <p>
-            You can open the side panel at any time by clicking the extension icon in the toolbar.
-            On the keyboard, use <kbd>Option</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> on Mac (
-            <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> on Windows/Linux) — not{" "}
-            <kbd>Command</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd>, which reopens the last closed tab.
-          </p>
-          <p>
-            If the shortcut does nothing, open <strong>chrome://extensions/shortcuts</strong> and
-            confirm that <strong>Open Browser Tab Lifecycle Manager side panel</strong> has a key
-            assigned. Chrome will not assign a shortcut if it conflicts with another extension or the
-            browser.
+            Active, pinned, audible, and locked tabs are never closed automatically. You can always
+            sleep, lock, or close tabs manually from the side panel.
           </p>
         </section>
 
-        <section className="onboarding__section onboarding__section--notice">
-          <h2>Enable automatic management</h2>
+        <section className="onboarding__section">
+          <h2>Default thresholds</h2>
+          <ul className="settings-list">
+            <li>Sleep after {DEFAULT_SETTINGS.sleepAfterMinutes} minutes of inactivity</li>
+            <li>
+              Close after {DEFAULT_SETTINGS.closeAfterMinutes / 60 / 24} days, with a{" "}
+              {DEFAULT_SETTINGS.closeGraceMinutes}-minute grace period
+            </li>
+          </ul>
+          <p>You can change these any time in Settings.</p>
+        </section>
+
+        <section className="onboarding__section">
+          <h2>Report-only mode (recommended)</h2>
+          <label className="settings-toggle">
+            <input
+              type="checkbox"
+              checked={reportOnly}
+              disabled={busy || done}
+              onChange={(event) => setReportOnly(event.target.checked)}
+            />
+            <span>
+              For the first 7 days, only report what <em>would</em> be closed — do not close anything
+              automatically
+            </span>
+          </label>
+        </section>
+
+        <section className="onboarding__section">
+          <h2>Side panel</h2>
           <p>
-            The full onboarding flow — where you can review your settings, set thresholds, and
-            enable automatic tab sleeping and closing — arrives in <strong>Milestone 2</strong>.
-          </p>
-          <p>
-            Until then, you can manually sleep and close tabs from the side panel. Your preferences
-            and protection lists will be available in Settings once the full controls are built.
+            Click the extension icon in the toolbar to open the control center. Keyboard shortcut:{" "}
+            <kbd>Option</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> on Mac (
+            <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> on Windows/Linux).
           </p>
         </section>
+
+        {error !== null && (
+          <p className="onboarding__error" role="alert">
+            {error}
+          </p>
+        )}
+
+        {done ? (
+          <section className="onboarding__section onboarding__section--notice">
+            <h2>Automatic management is on</h2>
+            <p>
+              Open the side panel to review your tabs.{" "}
+              {reportOnly
+                ? "Report-only mode is active for 7 days — you will see what would be closed before anything is removed."
+                : "Automatic sleeping and closing are now active."}
+            </p>
+          </section>
+        ) : (
+          <button
+            type="button"
+            className="btn btn--primary onboarding__cta"
+            disabled={busy}
+            onClick={() => void enable()}
+          >
+            {busy ? "Enabling…" : "Enable automatic management"}
+          </button>
+        )}
       </main>
     </div>
   );

@@ -178,6 +178,29 @@ export function SettingsView({ state, onSettingsChanged }: SettingsViewProps) {
       )}
 
       <section className="settings-section">
+        <h2 className="settings-section__title">Automation control</h2>
+        {settings.automationPaused ? (
+          <button
+            type="button"
+            className="btn btn--primary"
+            disabled={automationInert}
+            onClick={() => void send({ type: "RESUME_AUTOMATION" }).then(onSettingsChanged)}
+          >
+            {STRINGS.settings.resumeAutomation}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="btn btn--ghost"
+            disabled={automationInert || !settings.onboardingCompleted}
+            onClick={() => void send({ type: "PAUSE_AUTOMATION" }).then(onSettingsChanged)}
+          >
+            {STRINGS.settings.pauseAutomation}
+          </button>
+        )}
+      </section>
+
+      <section className="settings-section">
         <h2 className="settings-section__title">Automatic sleeping</h2>
         <label className="settings-toggle">
           <input

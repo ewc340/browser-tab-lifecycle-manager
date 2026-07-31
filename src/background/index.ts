@@ -8,13 +8,19 @@
  */
 import * as log from "../shared/log.ts";
 import { initListeners } from "./listeners.ts";
-import { initMessaging, broadcast } from "./messaging.ts";
+import { initMessaging } from "./messaging.ts";
 import {
   initContextMenuClicks,
   initContextMenus,
   handleToggleLockCommand,
 } from "./context-menu-service.ts";
 import { taskQueue } from "./task-queue.ts";
+import {
+  handleBrowserStartup,
+  handleExtensionInstall,
+} from "./reconciliation-service.ts";
+import { isLifecycleAlarm } from "./alarm-service.ts";
+import { runLifecycleSweep } from "./lifecycle-sweep.ts";
 
 // ── Register all Chrome event listeners synchronously ─────────────────────────
 
@@ -42,11 +48,22 @@ chrome.runtime.onInstalled.addListener(({ reason }) => {
       .catch((e: unknown) => log.error("Failed to open onboarding tab", e));
   }
 
+  taskQueue
+    .push(async () => {
+      await handleExtensionInstall(reason);
+    })
+    .catch((e: unknown) => log.error("onInstalled handler failed", e));
+
   log.info("onInstalled", reason);
 });
 
 chrome.runtime.onStartup.addListener(() => {
   log.info("onStartup");
+  taskQueue
+    .push(async () => {
+      await handleBrowserStartup();
+    })
+    .catch((e: unknown) => log.error("onStartup handler failed", e));
 });
 
 /**
@@ -78,6 +95,10 @@ chrome.commands.onCommand.addListener((command) => {
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  log.debug("alarm fired", alarm.name);
-  broadcast({ type: "APP_STATE_CHANGED" });
+  if (!isLifecycleAlarm(alarm)) return;
+  taskQueue
+    .push(async () => {
+      await runLifecycleSweep({ trigger: "alarm" });
+    })
+    .catch((e: unknown) => log.error("lifecycle alarm handler failed", e));
 });

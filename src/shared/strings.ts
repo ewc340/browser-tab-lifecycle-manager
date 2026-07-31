@@ -70,5 +70,15 @@ export const STRINGS = {
   settings: {
     shortcutsLink: "Set keyboard shortcuts",
     automationInert: "Automatic management is configured here but stays off until you finish onboarding.",
+    pauseAutomation: "Pause automatic management",
+    resumeAutomation: "Resume automatic management",
+    automationPaused: "Automatic management is paused. Pending closures were cancelled.",
+  },
+  reportOnly: {
+    title: (count: number) =>
+      `Report-only: cleanup would have closed ${count} tab${count === 1 ? "" : "s"}.`,
+    review: "Review tabs",
+    enableClosing: "Enable automatic closing",
+    extend: "Extend 7 days",
   },
 } as const;

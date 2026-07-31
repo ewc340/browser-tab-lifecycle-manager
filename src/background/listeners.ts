@@ -20,6 +20,7 @@ import {
   recordFromTab,
 } from "./tab-repository.ts";
 import { refreshLockFromTab } from "./lock-service.ts";
+import { recordTabActivation } from "./activity-ledger.ts";
 
 // ── Debounced broadcast ───────────────────────────────────────────────────────
 
@@ -117,7 +118,12 @@ export function initListeners(): void {
             active: true,
             lastActivatedAt: now,
             neverActivated: false,
+            pendingCloseAt: undefined,
+            pendingCloseScheduledAt: undefined,
+            pendingCloseReason: undefined,
+            pendingCloseRuleMinutes: undefined,
           });
+          void recordTabActivation(activeRecord.normalizedUrl, now, activeRecord.firstObservedAt);
         }
 
         await putRecords(records);

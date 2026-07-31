@@ -240,6 +240,18 @@ body {
   border-bottom: 1px solid var(--color-border);
 }
 
+.banner--info {
+  background: #dbeafe;
+  color: #1e3a8a;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.banner--muted {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+
 .banner__action {
   flex-shrink: 0;
   padding: 2px var(--space-2);
@@ -690,6 +702,16 @@ body {
 .onboarding__section--notice {
   background: var(--color-bg);
   border-style: dashed;
+}
+
+.onboarding__cta {
+  align-self: flex-start;
+}
+
+.onboarding__error {
+  margin: 0;
+  color: var(--color-danger, #b91c1c);
+  font-size: var(--font-size-sm);
 }
 
 kbd {
