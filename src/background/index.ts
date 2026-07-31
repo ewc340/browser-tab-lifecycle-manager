@@ -9,19 +9,22 @@
 import * as log from "../shared/log.ts";
 import { initListeners } from "./listeners.ts";
 import { initMessaging, broadcast } from "./messaging.ts";
+import {
+  initContextMenuClicks,
+  initContextMenus,
+  handleToggleLockCommand,
+} from "./context-menu-service.ts";
+import { taskQueue } from "./task-queue.ts";
 
 // ── Register all Chrome event listeners synchronously ─────────────────────────
 
 initListeners();
 initMessaging();
+initContextMenus();
+initContextMenuClicks();
 
 // ── Side-panel behaviour ──────────────────────────────────────────────────────
 
-// Open the panel when the user clicks the toolbar icon (MV3 sidePanel API).
-// sidePanel is Chrome 114+; openPanelOnActionClick/setPanelBehavior is Chrome 116+.
-// Both are well below minimum_chrome_version: 121, so there is no compatibility gap.
-// The call is at top level AND repeated in onInstalled because Chrome sometimes
-// loses this setting after an update. The .catch() is kept as defensive practice.
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((e: unknown) => {
   log.error("setPanelBehavior failed", e);
 });
@@ -46,16 +49,13 @@ chrome.runtime.onStartup.addListener(() => {
   log.info("onStartup");
 });
 
-// ── Stub listeners registered now for future milestones ──────────────────────
-// MV3 requires synchronous top-level registration. Handlers that add behaviour
-// later can be empty stubs; what matters is that the registration itself happens.
-
-chrome.contextMenus.onClicked.addListener((info) => {
-  log.debug("contextMenu clicked", info.menuItemId);
-});
-
 chrome.commands.onCommand.addListener((command) => {
-  log.debug("command", command);
+  if (command !== "toggle-tab-keep") return;
+  taskQueue
+    .push(async () => {
+      await handleToggleLockCommand();
+    })
+    .catch((e: unknown) => log.error("toggle-tab-keep command failed", e));
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
