@@ -2,7 +2,7 @@
  * Activity feed — filters, paging, and expandable aggregate rows (M3).
  */
 import { useCallback, useEffect, useState } from "react";
-import type { ActivityEvent } from "../../shared/types.ts";
+import type { ActivityEvent, TabSnapshot } from "../../shared/types.ts";
 import {
   filterActivityEvents,
   type ActivityFilter,
@@ -24,16 +24,65 @@ const FILTERS: { id: ActivityFilter; label: string }[] = [
 
 const PAGE_SIZE = 50;
 
+function faviconUrl(url: string): string {
+  return chrome.runtime.getURL(`/_favicon/?pageUrl=${encodeURIComponent(url)}&size=32`);
+}
+
+function ActivityTabItem({
+  tab,
+  extensionId,
+  onOpen,
+}: {
+  tab: TabSnapshot;
+  extensionId?: string;
+  onOpen: (tab: TabSnapshot) => void;
+}) {
+  const [faviconError, setFaviconError] = useState(false);
+  const host = displayHostForTab(tab.url, extensionId);
+  const canOpen = tab.tabId !== undefined || tab.url.length > 0;
+
+  return (
+    <button
+      type="button"
+      className="activity-tab"
+      disabled={!canOpen}
+      onClick={() => onOpen(tab)}
+      title={canOpen ? `Open ${tab.title}` : tab.title}
+    >
+      <span className="activity-tab__favicon" aria-hidden="true">
+        {faviconError || tab.url.length === 0 ? (
+          <span className="activity-tab__favicon-placeholder" />
+        ) : (
+          <img
+            src={faviconUrl(tab.url)}
+            alt=""
+            width={16}
+            height={16}
+            onError={() => setFaviconError(true)}
+          />
+        )}
+      </span>
+      <span className="activity-tab__content">
+        <span className="activity-tab__title">{tab.title}</span>
+        {host.length > 0 && <span className="activity-tab__host">{host}</span>}
+      </span>
+      {canOpen && <span className="activity-tab__open" aria-hidden="true">→</span>}
+    </button>
+  );
+}
+
 function ActivityEventRow({
   event,
   extensionId,
   expanded,
   onToggle,
+  onOpenTab,
 }: {
   event: ActivityEvent;
   extensionId?: string;
   expanded: boolean;
   onToggle: () => void;
+  onOpenTab: (tab: TabSnapshot) => void;
 }) {
   const totalCount =
     typeof event.metadata?.totalCount === "number" ? event.metadata.totalCount : event.tabs.length;
@@ -58,15 +107,19 @@ function ActivityEventRow({
               {expanded ? "Hide tabs" : `View ${totalCount} tab(s)`}
             </button>
           )}
-          {(expanded || !isAggregate) &&
-            event.tabs.map((tab, index) => (
-              <div key={`${tab.url}-${index}`} className="activity-row__tab">
-                <span className="activity-row__tab-title">{tab.title}</span>
-                <span className="activity-row__tab-host">
-                  {displayHostForTab(tab.url, extensionId)}
-                </span>
-              </div>
-            ))}
+          {(expanded || !isAggregate) && (
+            <ul className="activity-row__tab-list">
+              {event.tabs.map((tab, index) => (
+                <li key={`${tab.url}-${tab.tabId ?? index}`}>
+                  <ActivityTabItem
+                    tab={tab}
+                    {...(extensionId !== undefined ? { extensionId } : {})}
+                    onOpen={onOpenTab}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </article>
@@ -124,6 +177,20 @@ export function ActivityView() {
     });
   };
 
+  const openTab = async (tab: TabSnapshot) => {
+    if (tab.tabId !== undefined) {
+      try {
+        await send({ type: "ACTIVATE_TAB", tabId: tab.tabId });
+        return;
+      } catch {
+        // Tab may have been closed since the event was recorded.
+      }
+    }
+    if (tab.url.length > 0) {
+      await chrome.tabs.create({ url: tab.url, active: true });
+    }
+  };
+
   const downloadJson = async () => {
     const { json } = await send({ type: "EXPORT_DATA", includeRecovery: false });
     const blob = new Blob([json], { type: "application/json" });
@@ -176,6 +243,7 @@ export function ActivityView() {
               {...(extensionId !== undefined ? { extensionId } : {})}
               expanded={expandedIds.has(event.id)}
               onToggle={() => toggleExpanded(event.id)}
+              onOpenTab={(tab) => void openTab(tab)}
             />
           ))}
         </div>

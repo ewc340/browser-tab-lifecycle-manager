@@ -47,27 +47,45 @@ function AudioIcon() {
   );
 }
 
-function LockIcon({ filled = false }: { filled?: boolean }) {
-  if (filled) {
-    return (
-      <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-        <path d="M12 7h-1V5a3 3 0 0 0-6 0v2H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1zM7 5a1 1 0 0 1 2 0v2H7V5zm1 7a1 1 0 1 1 0-2 1 1 0 0 1 0 2z" />
-      </svg>
-    );
-  }
-  return (
-    <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2M4 7h8v6H4z" />
-    </svg>
-  );
-}
-
 function MoreIcon() {
   return (
     <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
       <circle cx="3" cy="8" r="1.5" />
       <circle cx="8" cy="8" r="1.5" />
       <circle cx="13" cy="8" r="1.5" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75">
+      <path d="M4 4l8 8M12 4l-8 8" />
+    </svg>
+  );
+}
+
+function SnoozeIcon() {
+  return (
+    <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M8 2a5.5 5.5 0 0 0-4.7 8.3L2 13l2.7-1.3A5.5 5.5 0 1 0 8 2zm0 9.5a4 4 0 1 1 0-8 4 4 0 0 1 0 8z" />
+      <path d="M7 6h2v3H7z" />
+    </svg>
+  );
+}
+
+function SleepIcon() {
+  return (
+    <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M2 11.5A6.5 6.5 0 0 1 11.5 2 7 7 0 1 0 2 11.5z" />
+    </svg>
+  );
+}
+
+function WakeIcon() {
+  return (
+    <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M8 3a1 1 0 0 1 1 1v1.1A4 4 0 0 1 11.9 8H13a1 1 0 1 1 0 2h-1.1A4 4 0 0 1 9 11.9V13a1 1 0 1 1-2 0v-1.1A4 4 0 0 1 4.1 8H3a1 1 0 1 1 0-2h1.1A4 4 0 0 1 7 5.1V4a1 1 0 0 1 1-1z" />
     </svg>
   );
 }
@@ -187,31 +205,46 @@ export function TabRow({
       </button>
 
       <div className="tab-row__actions">
-        {tab.discarded && (
+        {tab.discarded ? (
           <button
             type="button"
             className="tab-row__action"
             aria-label={`Wake ${tab.title}`}
+            title={STRINGS.sleep.wake}
             onClick={() => onWake?.(tab.tabId)}
           >
-            {STRINGS.sleep.wake}
+            <WakeIcon />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="tab-row__action"
+            aria-label={`Sleep ${tab.title}`}
+            title={STRINGS.sleep.action}
+            onClick={() => onSleep?.(tab.tabId)}
+          >
+            <SleepIcon />
           </button>
         )}
 
         <button
           type="button"
-          className={`tab-row__action tab-row__action--lock${tab.closeLocked ? " tab-row__action--locked" : ""}`}
-          aria-label={
-            tab.closeLocked
-              ? `Unlock ${tab.title}`
-              : `Lock ${tab.title} from automatic closure`
-          }
-          aria-pressed={tab.closeLocked}
-          onClick={() =>
-            tab.closeLocked ? onUnlock?.(tab.tabId) : onLock?.(tab.tabId)
-          }
+          className="tab-row__action"
+          aria-label={`Snooze ${tab.title}`}
+          title={STRINGS.snooze.action}
+          onClick={() => onSnooze?.(tab.tabId)}
         >
-          <LockIcon filled={tab.closeLocked} />
+          <SnoozeIcon />
+        </button>
+
+        <button
+          type="button"
+          className="tab-row__action tab-row__action--danger"
+          aria-label={tab.closeLocked ? `Close ${tab.title} manually` : `Close ${tab.title}`}
+          title={tab.closeLocked ? STRINGS.close.manualAction : STRINGS.close.action}
+          onClick={() => onClose?.(tab.tabId)}
+        >
+          <CloseIcon />
         </button>
 
         <div className="tab-row__menu" ref={menuRef}>

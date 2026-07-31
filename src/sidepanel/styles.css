@@ -358,7 +358,7 @@ body {
 .tab-row__actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-1);
   padding-right: var(--space-2);
   flex-shrink: 0;
 }
@@ -367,8 +367,8 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -376,10 +376,14 @@ body {
   cursor: pointer;
 }
 
-.tab-row__action:hover,
-.tab-row__action--locked {
+.tab-row__action:hover {
   color: var(--color-accent);
   background: var(--color-surface);
+}
+
+.tab-row__action--danger:hover {
+  color: var(--color-danger, #e5534b);
+  background: color-mix(in srgb, var(--color-danger, #e5534b) 12%, transparent);
 }
 
 .tab-row__menu {
@@ -645,11 +649,107 @@ body {
   color: var(--color-text-muted);
 }
 
-.activity-row__tab,
-.recovery-row__host {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+.activity-row__tabs {
+  margin-top: var(--space-2);
 }
+
+.activity-row__expand {
+  margin-bottom: var(--space-2);
+}
+
+.activity-row__tab-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.activity-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.08s, border-color 0.08s;
+}
+
+.activity-tab:hover:not(:disabled) {
+  background: var(--color-surface-raised);
+  border-color: var(--color-accent);
+}
+
+.activity-tab:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.activity-tab:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.activity-tab__favicon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.activity-tab__favicon img {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+}
+
+.activity-tab__favicon-placeholder {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--color-border);
+}
+
+.activity-tab__content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.activity-tab__title {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-tab__host {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-tab__open {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.recovery-row__host {
 
 .recovery-view__hint {
   margin: 0 0 var(--space-3);
