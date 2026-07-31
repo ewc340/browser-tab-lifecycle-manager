@@ -10,6 +10,7 @@
  */
 import { useState } from "react";
 import { ThemeProvider } from "./components/ThemeProvider.tsx";
+import { ToastStack } from "./components/ToastStack.tsx";
 import { TabsView } from "./views/TabsView.tsx";
 import { ActivityView } from "./views/ActivityView.tsx";
 import { RecoveryView } from "./views/RecoveryView.tsx";
@@ -18,6 +19,7 @@ import { EmptyState } from "./components/EmptyState.tsx";
 import { useAppState, useTick } from "./hooks/useAppState.ts";
 import { useMessaging } from "./hooks/useMessaging.ts";
 import { PRODUCT_SHORT_NAME } from "../shared/product.ts";
+import { STRINGS } from "../shared/strings.ts";
 
 type NavTab = "tabs" | "activity" | "recovery" | "settings";
 
@@ -63,6 +65,36 @@ export function App() {
             </button>
           </div>
         )}
+
+        {state !== null && state.settings.automationPaused && (
+          <div className="banner banner--muted" role="status">
+            <span>{STRINGS.settings.automationPaused}</span>
+            <button
+              className="banner__action"
+              type="button"
+              onClick={() => void send({ type: "RESUME_AUTOMATION" }).then(refresh)}
+            >
+              {STRINGS.settings.resumeAutomation}
+            </button>
+          </div>
+        )}
+
+        {state !== null &&
+          state.runtime.reportOnlyUntil > now &&
+          state.settings.autoCloseEnabled && (
+            <div className="banner banner--info" role="status">
+              <span>
+                {STRINGS.reportOnly.title(state.counts.pendingClose)}
+              </span>
+              <button
+                className="banner__action"
+                type="button"
+                onClick={() => setActiveNav("tabs")}
+              >
+                {STRINGS.reportOnly.review}
+              </button>
+            </div>
+          )}
 
         <nav className="app__nav" aria-label="Views">
           <ul className="nav-tabs">
@@ -111,9 +143,13 @@ export function App() {
               )}
               {activeNav === "activity" && <ActivityView />}
               {activeNav === "recovery" && <RecoveryView />}
-              {activeNav === "settings" && <SettingsView />}
+              {activeNav === "settings" && (
+                <SettingsView state={state} onSettingsChanged={refresh} />
+              )}
             </>
           )}
+
+          <ToastStack />
 
           {!loading && error === null && state === null && (
             <EmptyState message="No data available." />

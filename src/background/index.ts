@@ -8,20 +8,30 @@
  */
 import * as log from "../shared/log.ts";
 import { initListeners } from "./listeners.ts";
-import { initMessaging, broadcast } from "./messaging.ts";
+import { initMessaging } from "./messaging.ts";
+import {
+  initContextMenuClicks,
+  initContextMenus,
+  handleToggleLockCommand,
+} from "./context-menu-service.ts";
+import { taskQueue } from "./task-queue.ts";
+import {
+  handleBrowserStartup,
+  handleExtensionInstall,
+} from "./reconciliation-service.ts";
+import { isLifecycleAlarm } from "./alarm-service.ts";
+import { runLifecycleSweep } from "./lifecycle-sweep.ts";
+import { SIDE_PANEL_TOGGLE_CLOSE } from "../shared/messages.ts";
 
 // ── Register all Chrome event listeners synchronously ─────────────────────────
 
 initListeners();
 initMessaging();
+initContextMenus();
+initContextMenuClicks();
 
 // ── Side-panel behaviour ──────────────────────────────────────────────────────
 
-// Open the panel when the user clicks the toolbar icon (MV3 sidePanel API).
-// sidePanel is Chrome 114+; openPanelOnActionClick/setPanelBehavior is Chrome 116+.
-// Both are well below minimum_chrome_version: 121, so there is no compatibility gap.
-// The call is at top level AND repeated in onInstalled because Chrome sometimes
-// loses this setting after an update. The .catch() is kept as defensive practice.
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((e: unknown) => {
   log.error("setPanelBehavior failed", e);
 });
@@ -39,26 +49,86 @@ chrome.runtime.onInstalled.addListener(({ reason }) => {
       .catch((e: unknown) => log.error("Failed to open onboarding tab", e));
   }
 
+  taskQueue
+    .push(async () => {
+      await handleExtensionInstall(reason);
+    })
+    .catch((e: unknown) => log.error("onInstalled handler failed", e));
+
   log.info("onInstalled", reason);
 });
 
 chrome.runtime.onStartup.addListener(() => {
   log.info("onStartup");
+  taskQueue
+    .push(async () => {
+      await handleBrowserStartup();
+    })
+    .catch((e: unknown) => log.error("onStartup handler failed", e));
 });
 
-// ── Stub listeners registered now for future milestones ──────────────────────
-// MV3 requires synchronous top-level registration. Handlers that add behaviour
-// later can be empty stubs; what matters is that the registration itself happens.
+// Last focused normal window — lets us call sidePanel.open() synchronously inside
+// commands.onCommand without losing the user-gesture token to an async tabs.query.
+let lastFocusedNormalWindowId: number | undefined;
 
-chrome.contextMenus.onClicked.addListener((info) => {
-  log.debug("contextMenu clicked", info.menuItemId);
+chrome.windows.onFocusChanged.addListener((windowId) => {
+  if (windowId === chrome.windows.WINDOW_ID_NONE) return;
+  chrome.windows.get(windowId, (win) => {
+    if (chrome.runtime.lastError || win.id === undefined) return;
+    if (win.type === "normal") lastFocusedNormalWindowId = win.id;
+  });
 });
+
+// Seed on service-worker start so the first shortcut press works immediately.
+chrome.windows.getLastFocused({ windowTypes: ["normal"] }, (win) => {
+  if (win.id !== undefined) lastFocusedNormalWindowId = win.id;
+});
+
+/**
+ * Toggles the side panel for the focused window.
+ *
+ * Chrome has no sidePanel.toggle(). Toolbar clicks toggle via setPanelBehavior,
+ * but keyboard shortcuts use a separate command. Pattern: ask any open panel to
+ * window.close() on a short delay, then call open() synchronously (a no-op when
+ * already open, opens when closed).
+ */
+function toggleSidePanelForFocusedWindow(): void {
+  chrome.runtime.sendMessage(SIDE_PANEL_TOGGLE_CLOSE).catch(() => {});
+
+  if (lastFocusedNormalWindowId !== undefined) {
+    chrome.sidePanel.open({ windowId: lastFocusedNormalWindowId }).catch((e: unknown) => {
+      log.error("sidePanel.open failed", e);
+    });
+    return;
+  }
+
+  chrome.windows.getLastFocused({ windowTypes: ["normal"] }, (win) => {
+    if (win.id === undefined) return;
+    lastFocusedNormalWindowId = win.id;
+    chrome.sidePanel.open({ windowId: win.id }).catch((e: unknown) => {
+      log.error("sidePanel.open failed", e);
+    });
+  });
+}
 
 chrome.commands.onCommand.addListener((command) => {
-  log.debug("command", command);
+  if (command === "open-side-panel") {
+    toggleSidePanelForFocusedWindow();
+    return;
+  }
+  if (command !== "toggle-tab-keep") return;
+  taskQueue
+    .push(async () => {
+      await handleToggleLockCommand();
+    })
+    .catch((e: unknown) => log.error("toggle-tab-keep command failed", e));
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  log.debug("alarm fired", alarm.name);
-  broadcast({ type: "APP_STATE_CHANGED" });
+  if (!isLifecycleAlarm(alarm)) return;
+  taskQueue
+    .push(async () => {
+      await runLifecycleSweep({ trigger: "alarm" });
+    })
+    .catch((e: unknown) => log.error("lifecycle alarm handler failed", e));
 });

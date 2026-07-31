@@ -31,12 +31,47 @@ function renameHtmlOutputs(): Plugin {
   };
 }
 
+/** Removes TanStack Virtual memo-debug console.info from panel bundles (PRV-005). */
+function stripTanstackPerfLogs(): Plugin {
+  const distDir = resolve(import.meta.dirname, "dist");
+  const pattern = /console\.info\(`%c⏱[\s\S]*?n\?\.key\)\}/g;
+
+  return {
+    name: "strip-tanstack-perf-logs",
+    async closeBundle() {
+      const { readFile, writeFile, readdir, stat } = await import("node:fs/promises");
+      const { join } = await import("node:path");
+
+      async function walk(dir: string): Promise<string[]> {
+        const entries = await readdir(dir);
+        const files: string[] = [];
+        for (const entry of entries) {
+          const full = join(dir, entry);
+          if ((await stat(full)).isDirectory()) files.push(...(await walk(full)));
+          else files.push(full);
+        }
+        return files;
+      }
+
+      for (const file of await walk(distDir)) {
+        if (!file.endsWith(".js")) continue;
+        const source = await readFile(file, "utf8");
+        const stripped = source.replace(pattern, "void 0;");
+        if (stripped !== source) await writeFile(file, stripped);
+      }
+    },
+  };
+}
+
 /**
  * Panel + onboarding build. The service worker is built separately by
  * `vite.config.sw.ts` because MV3 requires it to be one self-contained module.
  */
 export default defineConfig({
-  plugins: [react(), renameHtmlOutputs()],
+  plugins: [react(), renameHtmlOutputs(), stripTanstackPerfLogs()],
+  define: {
+    "process.env.NODE_ENV": JSON.stringify("production"),
+  },
   // Extension pages may only load same-origin scripts under the MV3 CSP, so there is
   // no dev server and no HMR. `vite build --watch` plus a reload is the dev loop.
   build: {

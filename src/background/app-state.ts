@@ -6,6 +6,7 @@
  */
 import type { AppState, StateCounts, TabView, WindowView } from "../shared/types.ts";
 import { deriveDisplayState, computeInactiveMs } from "../shared/eligibility.ts";
+import { computeSkipReason } from "../shared/lifecycle.ts";
 import { isAutomationActive } from "../shared/defaults.ts";
 import { loadSettings } from "./settings-service.ts";
 import { loadRuntimeState } from "./runtime-state-service.ts";
@@ -28,11 +29,16 @@ export async function buildAppState(now: number): Promise<AppState> {
     const displayState = deriveDisplayState(record, now);
     const inactiveMs = computeInactiveMs(record, now);
 
+    const skipReason = computeSkipReason(record, settings, {
+      now,
+      browserStartedAt: runtime.browserStartedAt,
+    });
+
     tabs.push({
       ...record,
       displayState,
       inactiveMs,
-      // skipReason is deferred to Milestone 3 (computed on demand in the sweep)
+      skipReason,
     });
   }
 

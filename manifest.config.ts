@@ -61,11 +61,13 @@ export const manifest = {
 
   commands: {
     _execute_action: {
-      // Ctrl+Shift+L is widely claimed by other extensions and Chrome silently drops
-      // a conflicting suggestion, so the lock command ships with no suggested key and
-      // the Settings view links to chrome://extensions/shortcuts instead.
-      suggested_key: { default: "Alt+Shift+T", mac: "Alt+Shift+T" },
+      // Toolbar click only — keyboard shortcut is on open-side-panel so we can call
+      // chrome.sidePanel.open() directly (more reliable than _execute_action on Mac).
       description: `Open ${PRODUCT_NAME}`,
+    },
+    "open-side-panel": {
+      suggested_key: { default: "Alt+Shift+T", mac: "Alt+Shift+T" },
+      description: `Open ${PRODUCT_NAME} side panel`,
     },
     "toggle-tab-keep": {
       description: "Keep the current tab (protect it from automatic closing)",
