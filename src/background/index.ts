@@ -49,7 +49,26 @@ chrome.runtime.onStartup.addListener(() => {
   log.info("onStartup");
 });
 
+/**
+ * Opens the side panel for the focused window. Must not await before
+ * sidePanel.open() — the user-gesture token from the keyboard command expires
+ * within the same event-loop turn.
+ */
+function openSidePanelForFocusedWindow(): void {
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+    const tab = tabs[0];
+    if (tab?.windowId === undefined) return;
+    chrome.sidePanel.open({ windowId: tab.windowId }).catch((e: unknown) => {
+      log.error("sidePanel.open failed", e);
+    });
+  });
+}
+
 chrome.commands.onCommand.addListener((command) => {
+  if (command === "open-side-panel") {
+    openSidePanelForFocusedWindow();
+    return;
+  }
   if (command !== "toggle-tab-keep") return;
   taskQueue
     .push(async () => {

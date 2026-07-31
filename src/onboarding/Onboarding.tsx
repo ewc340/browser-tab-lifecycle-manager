@@ -23,8 +23,16 @@ export function Onboarding() {
             automatically until you enable it during onboarding.
           </p>
           <p>
-            You can open the side panel at any time by clicking the extension icon in the toolbar,
-            or by pressing <kbd>Alt+Shift+T</kbd>.
+            You can open the side panel at any time by clicking the extension icon in the toolbar.
+            On the keyboard, use <kbd>Option</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> on Mac (
+            <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> on Windows/Linux) — not{" "}
+            <kbd>Command</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd>, which reopens the last closed tab.
+          </p>
+          <p>
+            If the shortcut does nothing, open <strong>chrome://extensions/shortcuts</strong> and
+            confirm that <strong>Open Browser Tab Lifecycle Manager side panel</strong> has a key
+            assigned. Chrome will not assign a shortcut if it conflicts with another extension or the
+            browser.
           </p>
         </section>
 
