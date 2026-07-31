@@ -19,6 +19,24 @@ import * as log from "../shared/log.ts";
 import { taskQueue } from "./task-queue.ts";
 import { buildAppState } from "./app-state.ts";
 import { updateSettings } from "./settings-service.ts";
+import { lockTabs, unlockTabs } from "./lock-service.ts";
+import {
+  closeTabs,
+  setHostRule,
+  setKeepLoaded,
+  sleepTabs,
+  snoozeTabs,
+  wakeTabs,
+} from "./tab-actions.ts";
+import {
+  toastCloseResult,
+  toastHostRule,
+  toastKeepLoaded,
+  toastLockChanged,
+  toastSleepResult,
+  toastSnoozed,
+  toastWakeResult,
+} from "./toast-service.ts";
 
 // ── Message handler ───────────────────────────────────────────────────────────
 
@@ -52,7 +70,6 @@ export function initMessaging(): void {
         } satisfies ExtensionResponse);
       });
 
-    // Keep the message channel open for the async response.
     return true;
   });
 }
@@ -70,11 +87,13 @@ async function route(request: ExtensionRequest): Promise<ResponseData[ExtensionR
       if (tab === null) throw new ExtensionError("TAB_NOT_FOUND");
       await chrome.windows.update(tab.windowId, { focused: true });
       await chrome.tabs.update(request.tabId, { active: true });
+      broadcast({ type: "APP_STATE_CHANGED" });
       return null;
     }
 
     case "UPDATE_SETTINGS": {
       const settings = await updateSettings(request.patch);
+      broadcast({ type: "SETTINGS_CHANGED" });
       return { settings };
     }
 
@@ -82,21 +101,66 @@ async function route(request: ExtensionRequest): Promise<ResponseData[ExtensionR
       await chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
       return null;
 
-    // ── Not yet implemented (Milestone 1+) ──────────────────────────────────
-    // An exhaustive switch (no `default`) means TypeScript will require a new
-    // case here whenever a new request type is added to the ExtensionRequest
-    // union, preventing silent omissions.
+    case "LOCK_TABS": {
+      const changed = await lockTabs(request.tabIds);
+      toastLockChanged(changed, true, request.tabIds);
+      broadcast({ type: "APP_STATE_CHANGED" });
+      return { changed };
+    }
+
+    case "UNLOCK_TABS": {
+      const changed = await unlockTabs(request.tabIds);
+      toastLockChanged(changed, false, request.tabIds);
+      broadcast({ type: "APP_STATE_CHANGED" });
+      return { changed };
+    }
+
+    case "SLEEP_TABS": {
+      const result = await sleepTabs(request.tabIds);
+      toastSleepResult(result.slept, request.tabIds);
+      broadcast({ type: "APP_STATE_CHANGED" });
+      return result;
+    }
+
+    case "WAKE_TABS": {
+      const result = await wakeTabs(request.tabIds);
+      toastWakeResult(result.woken, request.tabIds);
+      broadcast({ type: "APP_STATE_CHANGED" });
+      return result;
+    }
+
+    case "CLOSE_TABS": {
+      const result = await closeTabs(request.tabIds);
+      toastCloseResult(result.closed);
+      broadcast({ type: "APP_STATE_CHANGED" });
+      return result;
+    }
+
+    case "SET_KEEP_LOADED": {
+      const changed = await setKeepLoaded(request.tabIds, request.keepLoaded);
+      toastKeepLoaded(changed, request.keepLoaded, request.tabIds);
+      broadcast({ type: "APP_STATE_CHANGED" });
+      return { changed };
+    }
+
+    case "SNOOZE_TABS": {
+      const changed = await snoozeTabs(request.tabIds, request.untilMs);
+      toastSnoozed(changed);
+      broadcast({ type: "APP_STATE_CHANGED" });
+      return { changed };
+    }
+
+    case "SET_HOST_RULE": {
+      const settings = await setHostRule(request.host, request.rule);
+      toastHostRule(request.host, request.rule);
+      broadcast({ type: "SETTINGS_CHANGED" });
+      return { settings };
+    }
+
+    // ── Not yet implemented (Milestone 2+) ──────────────────────────────────
     case "GET_ACTIVITY":
     case "GET_RECOVERY":
-    case "LOCK_TABS":
-    case "UNLOCK_TABS":
-    case "SLEEP_TABS":
-    case "WAKE_TABS":
-    case "CLOSE_TABS":
-    case "SET_KEEP_LOADED":
-    case "SNOOZE_TABS":
     case "CANCEL_PENDING_CLOSE":
-    case "SET_HOST_RULE":
     case "COMPLETE_ONBOARDING":
     case "PAUSE_AUTOMATION":
     case "RESUME_AUTOMATION":
@@ -117,11 +181,6 @@ async function route(request: ExtensionRequest): Promise<ResponseData[ExtensionR
 
 // ── Broadcast ─────────────────────────────────────────────────────────────────
 
-/**
- * Sends a broadcast to all open extension pages (panels, onboarding). The
- * rejection is always swallowed: "Receiving end does not exist" is the normal
- * outcome when no panel is open.
- */
 export function broadcast(message: ExtensionBroadcast): void {
   const envelope: BroadcastEnvelope = { v: PROTOCOL_VERSION, broadcast: message };
   chrome.runtime.sendMessage(envelope).catch(() => {

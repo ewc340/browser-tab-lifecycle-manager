@@ -10,6 +10,7 @@
  */
 import { useState } from "react";
 import { ThemeProvider } from "./components/ThemeProvider.tsx";
+import { ToastStack } from "./components/ToastStack.tsx";
 import { TabsView } from "./views/TabsView.tsx";
 import { ActivityView } from "./views/ActivityView.tsx";
 import { RecoveryView } from "./views/RecoveryView.tsx";
@@ -111,9 +112,13 @@ export function App() {
               )}
               {activeNav === "activity" && <ActivityView />}
               {activeNav === "recovery" && <RecoveryView />}
-              {activeNav === "settings" && <SettingsView />}
+              {activeNav === "settings" && (
+                <SettingsView state={state} onSettingsChanged={refresh} />
+              )}
             </>
           )}
+
+          <ToastStack />
 
           {!loading && error === null && state === null && (
             <EmptyState message="No data available." />

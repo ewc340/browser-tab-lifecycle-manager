@@ -19,6 +19,7 @@ import {
   reconcileFromBrowser,
   recordFromTab,
 } from "./tab-repository.ts";
+import { refreshLockFromTab } from "./lock-service.ts";
 
 // ── Debounced broadcast ───────────────────────────────────────────────────────
 
@@ -83,6 +84,9 @@ export function initListeners(): void {
         const existing = records.get(tabId);
         const windowType = await getWindowType(tab.windowId);
         const record = recordFromTab(tab, windowType, existing, now);
+        if (existing?.closeLocked) {
+          await refreshLockFromTab(tab, record);
+        }
         await putRecord(record);
         scheduleBroadcast();
       })
