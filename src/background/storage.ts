@@ -59,20 +59,27 @@ export async function getSession<T>(key: string, fallback: T): Promise<T> {
  * Writes to local storage. Rethrows quota errors as STORAGE_QUOTA_EXCEEDED so
  * callers can present a human-readable message.
  *
- * TODO(M3): before rethrowing on quota, call trimHistory({ aggressive: true })
- * to evict the oldest activity buckets and recovery records, then retry once.
+ * On quota pressure, trims oldest history once and retries.
  */
 export async function setLocal(patch: Record<string, unknown>): Promise<void> {
   try {
     await chrome.storage.local.set(patch);
   } catch (e) {
-    if (isQuotaError(e)) {
-      throw new ExtensionError(
-        "STORAGE_QUOTA_EXCEEDED",
-        e instanceof Error ? e.message : undefined,
-      );
+    if (!isQuotaError(e)) {
+      throw toExtensionError(e, "STORAGE_WRITE_FAILED");
     }
-    throw toExtensionError(e, "STORAGE_WRITE_FAILED");
+    await trimHistory({ aggressive: true });
+    try {
+      await chrome.storage.local.set(patch);
+    } catch (retryError) {
+      if (isQuotaError(retryError)) {
+        throw new ExtensionError(
+          "STORAGE_QUOTA_EXCEEDED",
+          retryError instanceof Error ? retryError.message : undefined,
+        );
+      }
+      throw toExtensionError(retryError, "STORAGE_WRITE_FAILED");
+    }
   }
 }
 
@@ -98,4 +105,15 @@ export async function getBytesInUse(): Promise<number> {
   } catch {
     return 0;
   }
+}
+
+/** Evicts oldest activity buckets and recovery records under quota pressure. */
+export async function trimHistory(_options?: { aggressive?: boolean }): Promise<void> {
+  const { enforceActivityRetention } = await import("./activity-service.ts");
+  const { enforceRecoveryRetention } = await import("./recovery-service.ts");
+  const { loadSettings } = await import("./settings-service.ts");
+  const settings = await loadSettings();
+  const maxEvents = Math.max(50, Math.floor(settings.maximumActivityEvents / 2));
+  await enforceActivityRetention(maxEvents, settings.activityRetentionDays);
+  await enforceRecoveryRetention();
 }

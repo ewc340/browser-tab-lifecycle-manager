@@ -32,8 +32,16 @@ import {
   toastSnoozed,
   toastWakeResult,
 } from "./toast-service.ts";
-import { getRecentActivity } from "./activity-service.ts";
-import { listRecoveryRecords } from "./recovery-service.ts";
+import { getActivityPage, clearAllActivity } from "./activity-service.ts";
+import {
+  listRecoveryRecords,
+  restoreRecoveryRecords,
+  deleteRecoveryRecords,
+  clearAllRecoveryRecords,
+} from "./recovery-service.ts";
+import { getDiagnosticsText, buildUsageSummary } from "./diagnostics-service.ts";
+import { exportExtensionData, importSettingsFromJson } from "./data-export-service.ts";
+import { loadRuntimeState, saveRuntimeState } from "./runtime-state-service.ts";
 import { completeOnboarding } from "./reconciliation-service.ts";
 import {
   cancelPendingCloseForTabs,
@@ -42,7 +50,6 @@ import {
   runLifecycleSweep,
 } from "./lifecycle-sweep.ts";
 import { getRecords, putRecords } from "./tab-repository.ts";
-import { loadRuntimeState, saveRuntimeState } from "./runtime-state-service.ts";
 
 export function initMessaging(): void {
   chrome.runtime.onMessage.addListener((rawMsg, _sender, sendResponse) => {
@@ -84,8 +91,10 @@ async function route(request: ExtensionRequest): Promise<ResponseData[ExtensionR
     case "GET_APP_STATE":
       return buildAppState(now);
 
-    case "GET_ACTIVITY":
-      return { events: await getRecentActivity(request.limit ?? 50) };
+    case "GET_ACTIVITY": {
+      const page = await getActivityPage(request.cursor, request.limit ?? 50);
+      return page;
+    }
 
     case "GET_RECOVERY":
       return { records: await listRecoveryRecords() };
@@ -231,17 +240,56 @@ async function route(request: ExtensionRequest): Promise<ResponseData[ExtensionR
       return summary;
     }
 
-    case "RESTORE_RECOVERY":
-    case "DELETE_RECOVERY":
-    case "CLEAR_ACTIVITY":
-    case "CLEAR_RECOVERY":
-    case "EXPORT_DATA":
-    case "IMPORT_SETTINGS":
-    case "GET_DIAGNOSTICS":
-      throw new ExtensionError(
-        "INVALID_REQUEST",
-        `"${request.type}" arrives in Milestone 3`,
-      );
+    case "RESTORE_RECOVERY": {
+      const restored = await restoreRecoveryRecords(request.recoveryIds, request.lock);
+      broadcast({ type: "APP_STATE_CHANGED" });
+      return { restored };
+    }
+
+    case "DELETE_RECOVERY": {
+      const deleted = await deleteRecoveryRecords(request.recoveryIds);
+      return { deleted };
+    }
+
+    case "CLEAR_ACTIVITY": {
+      await clearAllActivity();
+      return null;
+    }
+
+    case "CLEAR_RECOVERY": {
+      await clearAllRecoveryRecords();
+      return null;
+    }
+
+    case "EXPORT_DATA": {
+      const json = await exportExtensionData(request.includeRecovery);
+      return { json };
+    }
+
+    case "IMPORT_SETTINGS": {
+      const settings = await importSettingsFromJson(request.json);
+      broadcast({ type: "SETTINGS_CHANGED" });
+      return { settings };
+    }
+
+    case "GET_DIAGNOSTICS": {
+      const { version } = chrome.runtime.getManifest();
+      const text = await getDiagnosticsText(version, request.redaction);
+      return { text };
+    }
+
+    case "GET_USAGE_SUMMARY": {
+      const { version } = chrome.runtime.getManifest();
+      const text = await buildUsageSummary(version);
+      return { text };
+    }
+
+    case "DISMISS_WHATS_NEW": {
+      const runtime = await loadRuntimeState();
+      runtime.whatsNewSeenVersion = runtime.whatsNewVersion;
+      await saveRuntimeState(runtime);
+      return { runtime };
+    }
   }
 }
 

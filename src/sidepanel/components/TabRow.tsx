@@ -159,6 +159,11 @@ export function TabRow({
 
         <div className="tab-row__meta">
           <TabStateBadge state={tab.displayState} />
+          {tab.skipReason !== undefined && tab.skipReason.length > 0 && (
+            <span className="tab-row__skip" title={tab.skipReason}>
+              {tab.skipReason}
+            </span>
+          )}
           <span className="tab-row__age" title={`Last active ${inactiveDuration} ago`}>
             {inactiveDuration}
           </span>

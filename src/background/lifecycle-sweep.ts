@@ -21,8 +21,9 @@ import { loadSettings, saveSettings } from "./settings-service.ts";
 import { loadRuntimeState, saveRuntimeState } from "./runtime-state-service.ts";
 import { applyLocksToRecords } from "./lock-service.ts";
 import { applyLedgerToRecords } from "./activity-ledger.ts";
-import { appendAggregateEvent, tabSnapshotFromRecord } from "./activity-service.ts";
-import { createRecoveryRecord } from "./recovery-service.ts";
+import { executeCloseWithRecovery } from "../shared/recovery-close-flow.ts";
+import { appendActivityEvent, appendAggregateEvent, tabSnapshotFromRecord } from "./activity-service.ts";
+import { createRecoveryRecord, patchRecoveryActivityId } from "./recovery-service.ts";
 import { updateBadge } from "./badge-service.ts";
 import {
   getSession,
@@ -147,16 +148,37 @@ async function closeTabManaged(
   await setSession({ [SESSION_KEY_CLOSING_TAB_IDS]: [...closingIds, record.tabId] });
 
   try {
-    const recovery = await createRecoveryRecord(record, reason, record.pendingCloseRuleMinutes ?? 0);
-    await chrome.tabs.remove(record.tabId);
-    await appendAggregateEvent(
-      "TAB_CLOSED",
-      "AUTOMATIC_CLOSE",
-      `Closed "${record.title}"`,
-      [tabSnapshotFromRecord(record)],
-      reason,
-      { recoveryId: recovery?.id ?? "" },
-    );
+    await executeCloseWithRecovery({
+      createRecovery: async () => {
+        const recovery = await createRecoveryRecord(
+          record,
+          reason,
+          record.pendingCloseRuleMinutes ?? 0,
+        );
+        if (recovery === null) {
+          throw new ExtensionError("STORAGE_WRITE_FAILED", "Could not create recovery record");
+        }
+        return { id: recovery.id };
+      },
+      removeTab: async () => {
+        await chrome.tabs.remove(record.tabId);
+      },
+      appendActivity: async (recoveryId) => {
+        const event = await appendActivityEvent({
+          type: "TAB_CLOSED",
+          source: "AUTOMATIC_CLOSE",
+          message: `Closed "${record.title}"`,
+          tabs: [tabSnapshotFromRecord(record)],
+          reason,
+          reversible: true,
+          relatedRecoveryIds: [recoveryId],
+        });
+        return { id: event.id };
+      },
+      linkActivity: async (recoveryId, activityEventId) => {
+        await patchRecoveryActivityId(recoveryId, activityEventId);
+      },
+    });
     return true;
   } catch (e) {
     log.warn("closeTabManaged failed", record.tabId, e);
@@ -290,7 +312,6 @@ export async function runLifecycleSweep(options?: {
     }
 
     // ── Execute closes in chunks ────────────────────────────────────────────
-    const closedTabs: ManagedTabRecord[] = [];
     for (let i = 0; i < closeTargets.length; i += CHUNK_SIZE) {
       const chunk = closeTargets.slice(i, i + CHUNK_SIZE);
       for (const record of chunk) {
@@ -299,22 +320,12 @@ export async function runLifecycleSweep(options?: {
         const ok = await closeTabManaged(fresh, record.pendingCloseReason ?? "Automatic closure");
         if (ok) {
           summary.closed++;
-          closedTabs.push(fresh);
           counters = { ...counters, closures: counters.closures + 1 };
         }
       }
       if (i + CHUNK_SIZE < closeTargets.length) {
         await new Promise((r) => setTimeout(r, CHUNK_YIELD_MS));
       }
-    }
-
-    if (closedTabs.length > 0) {
-      await appendAggregateEvent(
-        "TAB_CLOSED",
-        "AUTOMATIC_CLOSE",
-        `Closed ${closedTabs.length} inactive tab(s)`,
-        closedTabs.map(tabSnapshotFromRecord),
-      );
     }
 
     if (wouldCloseSnapshots.length > 0 && reportOnlyClosing) {

@@ -66,6 +66,30 @@ export function App() {
           </div>
         )}
 
+        {state !== null &&
+          state.runtime.whatsNewVersion !== state.runtime.whatsNewSeenVersion && (
+            <div className="banner banner--info" role="status">
+              <span>
+                Updated to v{state.extensionVersion}. See what changed in the release notes.
+              </span>
+              <a
+                className="banner__action"
+                href="https://github.com/ewc340/browser-tab-lifecycle-manager/releases"
+                target="_blank"
+                rel="noreferrer"
+              >
+                What&apos;s new
+              </a>
+              <button
+                className="banner__action"
+                type="button"
+                onClick={() => void send({ type: "DISMISS_WHATS_NEW" }).then(refresh)}
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
         {state !== null && state.settings.automationPaused && (
           <div className="banner banner--muted" role="status">
             <span>{STRINGS.settings.automationPaused}</span>

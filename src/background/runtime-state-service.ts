@@ -17,6 +17,7 @@ function makeInitialState(): RuntimeState {
     reportOnlyUntil: 0,
     lastKnownVersion: version,
     whatsNewVersion: version,
+    whatsNewSeenVersion: version,
   };
 }
 
