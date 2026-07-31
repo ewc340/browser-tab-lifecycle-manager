@@ -15,6 +15,7 @@ export const SESSION_KEY_TAB_RECORDS = "tabRecords";
 export const SESSION_KEY_CLOSING_TAB_IDS = "closingTabIds";
 export const SESSION_KEY_SWEEP_LEASE = "sweepLease";
 export const SESSION_KEY_SWEEP_COUNTERS = "sweepCounters";
+export const SESSION_KEY_MIGRATION_LOCK = "migrationLock";
 
 // ── Local storage keys ────────────────────────────────────────────────────────
 // Durable across restarts. Keys are versioned so schema migrations can be

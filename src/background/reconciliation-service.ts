@@ -10,6 +10,7 @@ import { reconcileFromBrowser } from "./tab-repository.ts";
 import { updateSettings } from "./settings-service.ts";
 import { loadRuntimeState, saveRuntimeState } from "./runtime-state-service.ts";
 import { ensureLifecycleAlarm } from "./alarm-service.ts";
+import { runMigrations } from "./migration-service.ts";
 import { runRetentionMaintenance } from "./maintenance-service.ts";
 import { appendActivityEvent } from "./activity-service.ts";
 import { runLifecycleSweep } from "./lifecycle-sweep.ts";
@@ -71,6 +72,8 @@ export async function runReconciliation(now: number): Promise<void> {
 
 export async function handleExtensionInstall(reason: chrome.runtime.InstalledDetails["reason"]): Promise<void> {
   const now = Date.now();
+  await runMigrations();
+
   const { version } = chrome.runtime.getManifest();
   const runtime = await loadRuntimeState();
   const previousVersion = runtime.lastKnownVersion;
