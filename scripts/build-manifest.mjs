@@ -6,10 +6,10 @@
  * unpacked extension ID match a published one; it must never appear in a shipped zip.
  *
  * Run with:
- *   node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/build-manifest.mjs
+ *   npm run build:manifest
  *
- * Node 22's --experimental-strip-types lets this file import .ts sources (including
- * their own .ts imports) directly, removing the need for a temp-file transpile step.
+ * Uses `tsx` so manifest.config.ts can be imported on Node 20+ without
+ * --experimental-strip-types (which is Node 22+ only).
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
