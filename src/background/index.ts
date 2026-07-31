@@ -66,16 +66,40 @@ chrome.runtime.onStartup.addListener(() => {
     .catch((e: unknown) => log.error("onStartup handler failed", e));
 });
 
+// Last focused normal window — lets us call sidePanel.open() synchronously inside
+// commands.onCommand without losing the user-gesture token to an async tabs.query.
+let lastFocusedNormalWindowId: number | undefined;
+
+chrome.windows.onFocusChanged.addListener((windowId) => {
+  if (windowId === chrome.windows.WINDOW_ID_NONE) return;
+  chrome.windows.get(windowId, (win) => {
+    if (chrome.runtime.lastError || win.id === undefined) return;
+    if (win.type === "normal") lastFocusedNormalWindowId = win.id;
+  });
+});
+
+// Seed on service-worker start so the first shortcut press works immediately.
+chrome.windows.getLastFocused({ windowTypes: ["normal"] }, (win) => {
+  if (win.id !== undefined) lastFocusedNormalWindowId = win.id;
+});
+
 /**
- * Opens the side panel for the focused window. Must not await before
- * sidePanel.open() — the user-gesture token from the keyboard command expires
- * within the same event-loop turn.
+ * Opens the side panel for the focused window. Must call sidePanel.open()
+ * synchronously in the command handler — async tabs.query loses the gesture token.
  */
 function openSidePanelForFocusedWindow(): void {
-  chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
-    const tab = tabs[0];
-    if (tab?.windowId === undefined) return;
-    chrome.sidePanel.open({ windowId: tab.windowId }).catch((e: unknown) => {
+  if (lastFocusedNormalWindowId !== undefined) {
+    chrome.sidePanel.open({ windowId: lastFocusedNormalWindowId }).catch((e: unknown) => {
+      log.error("sidePanel.open failed", e);
+    });
+    return;
+  }
+
+  // Fallback when focus state is not cached yet (first run).
+  chrome.windows.getLastFocused({ windowTypes: ["normal"] }, (win) => {
+    if (win.id === undefined) return;
+    lastFocusedNormalWindowId = win.id;
+    chrome.sidePanel.open({ windowId: win.id }).catch((e: unknown) => {
       log.error("sidePanel.open failed", e);
     });
   });
