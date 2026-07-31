@@ -13,6 +13,9 @@ import type { SerializedError } from "./errors.ts";
 
 export const PROTOCOL_VERSION = 1;
 
+/** Internal signal: side panel should close (used by keyboard toggle). */
+export const SIDE_PANEL_TOGGLE_CLOSE = "SIDE_PANEL_TOGGLE_CLOSE" as const;
+
 export type HostRule = "NEVER_CLOSE" | "NEVER_SLEEP" | "NONE";
 
 export type ExtensionRequest =

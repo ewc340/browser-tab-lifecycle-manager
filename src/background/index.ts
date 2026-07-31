@@ -21,6 +21,7 @@ import {
 } from "./reconciliation-service.ts";
 import { isLifecycleAlarm } from "./alarm-service.ts";
 import { runLifecycleSweep } from "./lifecycle-sweep.ts";
+import { SIDE_PANEL_TOGGLE_CLOSE } from "../shared/messages.ts";
 
 // ── Register all Chrome event listeners synchronously ─────────────────────────
 
@@ -84,10 +85,16 @@ chrome.windows.getLastFocused({ windowTypes: ["normal"] }, (win) => {
 });
 
 /**
- * Opens the side panel for the focused window. Must call sidePanel.open()
- * synchronously in the command handler — async tabs.query loses the gesture token.
+ * Toggles the side panel for the focused window.
+ *
+ * Chrome has no sidePanel.toggle(). Toolbar clicks toggle via setPanelBehavior,
+ * but keyboard shortcuts use a separate command. Pattern: ask any open panel to
+ * window.close() on a short delay, then call open() synchronously (a no-op when
+ * already open, opens when closed).
  */
-function openSidePanelForFocusedWindow(): void {
+function toggleSidePanelForFocusedWindow(): void {
+  chrome.runtime.sendMessage(SIDE_PANEL_TOGGLE_CLOSE).catch(() => {});
+
   if (lastFocusedNormalWindowId !== undefined) {
     chrome.sidePanel.open({ windowId: lastFocusedNormalWindowId }).catch((e: unknown) => {
       log.error("sidePanel.open failed", e);
@@ -95,7 +102,6 @@ function openSidePanelForFocusedWindow(): void {
     return;
   }
 
-  // Fallback when focus state is not cached yet (first run).
   chrome.windows.getLastFocused({ windowTypes: ["normal"] }, (win) => {
     if (win.id === undefined) return;
     lastFocusedNormalWindowId = win.id;
@@ -107,7 +113,7 @@ function openSidePanelForFocusedWindow(): void {
 
 chrome.commands.onCommand.addListener((command) => {
   if (command === "open-side-panel") {
-    openSidePanelForFocusedWindow();
+    toggleSidePanelForFocusedWindow();
     return;
   }
   if (command !== "toggle-tab-keep") return;
