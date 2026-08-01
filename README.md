@@ -16,6 +16,32 @@ Chrome 121 or later is required. The floor comes from `tabs.Tab.lastAccessed`, w
 
 ---
 
+## Install on another computer
+
+To use the extension on a different machine without cloning the repo:
+
+1. **Build the zip** (on any machine with Node.js 22+):
+   ```bash
+   npm install
+   npm run package
+   ```
+   This creates `browser-tab-lifecycle-manager-0.1.0.zip` in the project root (version matches `package.json`).
+
+2. **Transfer the zip** to the other device (USB drive, cloud storage, GitHub Releases, or the `dist-zip` artifact from CI).
+
+3. **Install in Chrome** on the target machine:
+   - Unzip the archive to a folder (e.g. `browser-tab-lifecycle-manager/`).
+   - Open `chrome://extensions`, enable **Developer mode**.
+   - Click **Load unpacked** and select the unzipped folder (the one containing `manifest.json`).
+
+   Chrome does not install `.zip` files directly for unpacked extensions — you must extract first.
+
+4. **Pin the extension** and use **Alt+Shift+T** (or the toolbar icon) to open the side panel.
+
+For teammates, you can also share a [GitHub Release](https://github.com/ewc340/browser-tab-lifecycle-manager/releases) asset or download the CI artifact from a green build on `main`.
+
+---
+
 ## Development loop
 
 ```
@@ -41,6 +67,7 @@ There is no hot-module replacement. The MV3 Content Security Policy forbids remo
 | `npm run smoke` | Panel smoke test (CDP + Xvfb) |
 | `npm run smoke:lifecycle` | Automated lifecycle sweep smoke test |
 | `npm run smoke:recovery` | Close → recovery → restore smoke test |
+| `npm run e2e` | Playwright E2E against the built extension (requires `npm run build`) |
 | `npm run package` | Full build + verify + zip for distribution |
 
 ---
@@ -59,6 +86,10 @@ scripts/
   lifecycle-smoke-test.mjs Lifecycle automation smoke test
   recovery-smoke-test.mjs  Recovery restore smoke test
   audit-bundle.mjs         Bundle safety auditor
+e2e/
+  panel.spec.ts            Playwright: inventory + navigation
+  tab-actions.spec.ts      Playwright: sleep, lock, close via UI
+  recovery.spec.ts         Playwright: auto-close + restore cycle
 docs/
   PRD.md                   Product requirements document
   IMPLEMENTATION_PLAN.md   Milestone-by-milestone plan

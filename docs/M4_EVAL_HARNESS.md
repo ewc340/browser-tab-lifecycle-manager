@@ -12,10 +12,12 @@ Stabilization milestone: comprehensive tests, migration safety, CI, and document
 | **Unit — migrations** | `src/tests/migration/migration.test.ts` | Ordered idempotent migrations, backup, fail-safe |
 | **Orchestration** | `src/tests/lifecycle-sweep.test.ts`, `recovery-orchestration.test.ts` | Sweep lease, close ordering, reconciliation helpers |
 | **Browser smoke** | `scripts/smoke-test.mjs`, `lifecycle-smoke-test.mjs`, `recovery-smoke-test.mjs` | Chrome CDP regression suite |
+| **Playwright E2E** | `e2e/*.spec.ts` | Panel UI against real extension + service worker |
 
 ```bash
 npm test
 npm run build && npm run smoke && npm run smoke:lifecycle && npm run smoke:recovery
+npm run build && npm run e2e
 ```
 
 ## PRD §30.1 coverage map
@@ -39,7 +41,7 @@ Cases 21–33 are covered in `evaluator.test.ts` under "M2 safety rails" unless 
 - [x] Migration framework with idempotency test
 - [x] CI workflow (lint → test → build → verify → package)
 - [x] Production defaults verification
-- [ ] Playwright E2E (subset)
+- [x] Playwright E2E (panel inventory, tab actions, recovery restore)
 - [ ] 1500-tab performance profile + `docs/API_VERIFICATION.md`
 - [ ] Full PRD §27 accessibility pass
 - [ ] Manual test plan executed and recorded

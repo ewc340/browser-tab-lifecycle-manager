@@ -32,5 +32,23 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: dist-zip
-          path: dist.zip
+          path: browser-tab-lifecycle-manager-*.zip
           if-no-files-found: error
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx playwright install chromium --with-deps
+
+      - run: npm run build
+
+      - run: xvfb-run npm run e2e
