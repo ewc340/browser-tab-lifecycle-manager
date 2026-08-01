@@ -23,5 +23,5 @@
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true
   },
-  "include": ["src", "scripts", "*.ts", "*.mts"]
+  "include": ["src", "e2e", "scripts", "*.ts", "*.mts"]
 }

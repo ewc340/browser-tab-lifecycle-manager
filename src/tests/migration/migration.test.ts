@@ -15,27 +15,30 @@ function installChromeMock(): void {
   vi.stubGlobal("chrome", {
     storage: {
       local: {
-        get: vi.fn(async (key: string | string[] | null) => {
-          if (key === null) return { ...localStore };
+        get: vi.fn((key: string | string[] | null) => {
+          if (key === null) return Promise.resolve({ ...localStore });
           const keys = typeof key === "string" ? [key] : key;
           const result: Record<string, unknown> = {};
           for (const k of keys) {
             if (localStore[k] !== undefined) result[k] = localStore[k];
           }
-          return result;
+          return Promise.resolve(result);
         }),
-        set: vi.fn(async (patch: Record<string, unknown>) => {
+        set: vi.fn((patch: Record<string, unknown>) => {
           Object.assign(localStore, patch);
+          return Promise.resolve();
         }),
-        remove: vi.fn(async (keys: string[]) => {
+        remove: vi.fn((keys: string[]) => {
           for (const k of keys) delete localStore[k];
+          return Promise.resolve();
         }),
-        getBytesInUse: vi.fn(async () => 0),
+        getBytesInUse: vi.fn(() => Promise.resolve(0)),
       },
       session: {
-        get: vi.fn(async (key: string) => ({ [key]: sessionStore[key] })),
-        set: vi.fn(async (patch: Record<string, unknown>) => {
+        get: vi.fn((key: string) => Promise.resolve({ [key]: sessionStore[key] })),
+        set: vi.fn((patch: Record<string, unknown>) => {
           Object.assign(sessionStore, patch);
+          return Promise.resolve();
         }),
       },
     },

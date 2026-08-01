@@ -1,10 +1,11 @@
 /**
  * Recovery list — restore automatically closed tabs (M3).
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { RecoveryRecord } from "../../shared/types.ts";
 import { displayHostForTab } from "../../shared/sanitize.ts";
 import { formatDate, formatShortDuration } from "../../shared/time.ts";
+import { useTick } from "../hooks/useAppState.ts";
 import { useMessaging } from "../hooks/useMessaging.ts";
 import { ConfirmDialog } from "../components/ConfirmDialog.tsx";
 
@@ -15,43 +16,46 @@ export function RecoveryView() {
   const [error, setError] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [extensionId, setExtensionId] = useState<string | undefined>();
-  const now = Date.now();
+  const now = useTick(30_000);
+  const fetchingRef = useRef(false);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(() => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
     setLoading(true);
     setError(null);
-    try {
-      const [{ records: next }, state] = await Promise.all([
-        send({ type: "GET_RECOVERY" }),
-        send({ type: "GET_APP_STATE" }),
-      ]);
-      setRecords(next);
-      setExtensionId(state.extensionId);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load recovery list");
-    } finally {
-      setLoading(false);
-    }
+    Promise.all([send({ type: "GET_RECOVERY" }), send({ type: "GET_APP_STATE" })])
+      .then(([{ records: next }, state]) => {
+        setRecords(next);
+        setExtensionId(state.extensionId);
+      })
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : "Could not load recovery list");
+      })
+      .finally(() => {
+        setLoading(false);
+        fetchingRef.current = false;
+      });
   }, [send]);
 
   useEffect(() => {
-    void refresh();
+    refresh();
   }, [refresh]);
 
   const restore = async (ids: string[], lock: boolean) => {
     await send({ type: "RESTORE_RECOVERY", recoveryIds: ids, lock });
-    await refresh();
+    refresh();
   };
 
   const remove = async (ids: string[]) => {
     await send({ type: "DELETE_RECOVERY", recoveryIds: ids });
-    await refresh();
+    refresh();
   };
 
   const clearAll = async () => {
     await send({ type: "CLEAR_RECOVERY" });
     setConfirmClear(false);
-    await refresh();
+    refresh();
   };
 
   return (
