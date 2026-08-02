@@ -51,6 +51,15 @@ import {
 } from "./lifecycle-sweep.ts";
 import { getRecords, putRecords } from "./tab-repository.ts";
 
+const INTERACTIVE_REQUESTS = new Set<ExtensionRequest["type"]>([
+  "GET_APP_STATE",
+  "GET_ACTIVITY",
+  "GET_RECOVERY",
+  "GET_DIAGNOSTICS",
+  "GET_USAGE_SUMMARY",
+  "EXPORT_DATA",
+]);
+
 export function initMessaging(): void {
   chrome.runtime.onMessage.addListener((rawMsg, _sender, sendResponse) => {
     if (!isRequestEnvelope(rawMsg)) {
@@ -68,18 +77,20 @@ export function initMessaging(): void {
       return false;
     }
 
-    taskQueue
-      .push(async () => {
-        const data = await route(rawMsg.request);
-        sendResponse({ ok: true, data } satisfies ExtensionResponse);
-      })
-      .catch((e: unknown) => {
-        const err = toExtensionError(e);
-        sendResponse({
-          ok: false,
-          error: err.toSerialized(import.meta.env.DEV),
-        } satisfies ExtensionResponse);
-      });
+    const enqueue = INTERACTIVE_REQUESTS.has(rawMsg.request.type)
+      ? taskQueue.pushInteractive.bind(taskQueue)
+      : taskQueue.push.bind(taskQueue);
+
+    enqueue(async () => {
+      const data = await route(rawMsg.request);
+      sendResponse({ ok: true, data } satisfies ExtensionResponse);
+    }).catch((e: unknown) => {
+      const err = toExtensionError(e);
+      sendResponse({
+        ok: false,
+        error: err.toSerialized(import.meta.env.DEV),
+      } satisfies ExtensionResponse);
+    });
 
     return true;
   });

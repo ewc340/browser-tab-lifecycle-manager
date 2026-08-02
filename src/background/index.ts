@@ -32,14 +32,28 @@ initContextMenuClicks();
 
 // ── Side-panel behaviour ──────────────────────────────────────────────────────
 
-chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((e: unknown) => {
+let panelBehaviorOk = false;
+
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).then(() => {
+  panelBehaviorOk = true;
+}).catch((e: unknown) => {
   log.error("setPanelBehavior failed", e);
+});
+
+/** Fallback when setPanelBehavior is unavailable (older Chrome builds). */
+chrome.action.onClicked.addListener((tab) => {
+  if (panelBehaviorOk) return;
+  chrome.sidePanel.open({ windowId: tab.windowId }).catch((e: unknown) => {
+    log.error("sidePanel.open (action fallback) failed", e);
+  });
 });
 
 // ── Extension lifecycle ───────────────────────────────────────────────────────
 
 chrome.runtime.onInstalled.addListener(({ reason }) => {
-  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((e: unknown) => {
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).then(() => {
+    panelBehaviorOk = true;
+  }).catch((e: unknown) => {
     log.error("setPanelBehavior (onInstalled) failed", e);
   });
 

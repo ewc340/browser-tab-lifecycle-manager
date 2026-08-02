@@ -15,6 +15,7 @@
   --color-text-muted: #6b6b6b;
   --color-accent: #4f46e5;
   --color-accent-hover: #4338ca;
+  --color-accent-muted: #eef2ff;
   --color-success: #16a34a;
   --color-warning: #d97706;
   --color-error: #dc2626;
@@ -60,6 +61,7 @@
   --color-text-muted: #9ca3af;
   --color-accent: #818cf8;
   --color-accent-hover: #a5b4fc;
+  --color-accent-muted: #312e81;
 
   --badge-active-bg: #14532d;
   --badge-active-fg: #86efac;
@@ -750,6 +752,9 @@ body {
 }
 
 .recovery-row__host {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
 
 .recovery-view__hint {
   margin: 0 0 var(--space-3);
@@ -1183,6 +1188,11 @@ kbd {
   margin-bottom: var(--space-4);
   padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--color-border);
+}
+
+.settings-section--muted {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
 .settings-section__title {

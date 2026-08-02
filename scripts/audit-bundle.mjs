@@ -94,6 +94,22 @@ if (manifest.content_scripts?.length) {
   violations.push("dist/manifest.json declares content scripts");
 }
 
+const cssFile = files.find((f) => relative(dist, f).startsWith("assets/styles") && f.endsWith(".css"));
+if (cssFile) {
+  const css = await readFile(cssFile, "utf8");
+  if (/\.recovery-row__host\{[^}]*\.settings-view/.test(css)) {
+    violations.push(
+      `${relative(root, cssFile)} nests .settings-view under .recovery-row__host — check for an unclosed CSS rule in src/sidepanel/styles.css`,
+    );
+  }
+  if (!/\.settings-view\{[^}]*padding/.test(css)) {
+    violations.push(`${relative(root, cssFile)} is missing top-level .settings-view padding styles`);
+  }
+  if (!/\.btn--ghost\{/.test(css)) {
+    violations.push(`${relative(root, cssFile)} is missing top-level .btn--ghost styles`);
+  }
+}
+
 if (urls.size > 0) {
   console.log("URL literals in the bundle (review manually; links are expected, loads are not):");
   for (const [url, count] of [...urls].sort()) {

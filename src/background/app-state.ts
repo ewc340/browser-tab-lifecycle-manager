@@ -4,17 +4,31 @@
  * Always reconciles from Chrome first so the panel gets a consistent snapshot
  * regardless of how stale the stored records are.
  */
-import type { AppState, StateCounts, TabView, WindowView } from "../shared/types.ts";
+import type { AppState, ManagedTabRecord, StateCounts, TabView, WindowView } from "../shared/types.ts";
 import { deriveDisplayState, computeInactiveMs } from "../shared/eligibility.ts";
 import { computeSkipReason } from "../shared/lifecycle.ts";
 import { isAutomationActive } from "../shared/defaults.ts";
 import { loadSettings } from "./settings-service.ts";
 import { loadRuntimeState } from "./runtime-state-service.ts";
-import { reconcileFromBrowser } from "./tab-repository.ts";
+import { getRecords, reconcileFromBrowser } from "./tab-repository.ts";
+
+/** Avoid full chrome.tabs.query on every panel refresh when records are fresh. */
+const RECONCILE_DEBOUNCE_MS = 3_000;
+let lastReconcileAt = 0;
+
+async function loadTabRecords(now: number): Promise<Map<number, ManagedTabRecord>> {
+  if (now - lastReconcileAt < RECONCILE_DEBOUNCE_MS) {
+    const cached = await getRecords();
+    if (cached.size > 0) return cached;
+  }
+  const records = await reconcileFromBrowser(now);
+  lastReconcileAt = now;
+  return records;
+}
 
 export async function buildAppState(now: number): Promise<AppState> {
   const [records, windows, settings, runtime] = await Promise.all([
-    reconcileFromBrowser(now),
+    loadTabRecords(now),
     chrome.windows.getAll(),
     loadSettings(),
     loadRuntimeState(),
