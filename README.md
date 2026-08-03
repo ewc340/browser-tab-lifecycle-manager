@@ -74,12 +74,12 @@ Enable **Developer mode** (or the equivalent toggle).
 
 Click **Load unpacked** (Edge may label it **Load extension**) and select the folder with `manifest.json`.
 
-### 4. Open the side panel
+### 4. Open the lifecycle manager
 
 - Use the extension toolbar icon, or
 - Set / use the keyboard shortcut (`Alt+Shift+T` is suggested in the manifest; configure under **Extension shortcuts** on that browser’s extensions page).
 
-Arc and Brave sometimes surface the side panel differently from Chrome; if the icon does nothing, open **Extension shortcuts** and assign **Open Browser Tab Lifecycle Manager side panel**.
+**Arc:** Arc does not support Chrome’s native side panel API. On Arc, the extension opens the manager in a **small popup window** instead of an embedded side panel. The shortcut and toolbar icon should both open that popup after you reload the extension. If the shortcut does nothing, open `arc://extensions/shortcuts` and assign **Open Browser Tab Lifecycle Manager side panel**.
 
 ### Expectations and caveats
 
