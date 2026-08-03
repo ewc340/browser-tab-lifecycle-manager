@@ -1527,6 +1527,11 @@ kbd {
   text-transform: uppercase;
 }
 
+.thread-visit__badge--closed {
+  background: var(--badge-background-bg);
+  color: var(--badge-background-fg);
+}
+
 .thread-card {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);

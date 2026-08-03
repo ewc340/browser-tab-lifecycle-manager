@@ -169,4 +169,44 @@ describe("thread clustering", () => {
     expect(merged?.hosts).toContain("a.com");
     expect(merged?.hosts).toContain("b.com");
   });
+
+  it("links child visit to opener thread across sites (topic)", () => {
+    const visits = new Map<string, VisitRecord>();
+    const threads = new Map<string, ThreadRecord>();
+    const now = 10_000;
+
+    const search = assignVisitToThreadMap(
+      makeVisit({
+        visitId: "v_search",
+        entityKeys: ["search:tennis robot"],
+        host: "google.com",
+        endedAt: 2000,
+      }),
+      threads,
+      now,
+      visits,
+    );
+    visits.set("v_search", search);
+
+    const reddit = assignVisitToThreadMap(
+      makeVisit({
+        visitId: "v_reddit",
+        entityKeys: ["reddit:abc"],
+        host: "reddit.com",
+        openerVisitId: "v_search",
+        startedAt: 2500,
+        lastSeenAt: 3000,
+        endedAt: 3000,
+      }),
+      threads,
+      now,
+      visits,
+    );
+
+    expect(reddit.threadId).toBe(search.threadId);
+    const thread = threads.get(reddit.threadId ?? "");
+    expect(thread?.clusterKind).toBe("topic");
+    expect(thread?.hosts).toContain("google.com");
+    expect(thread?.hosts).toContain("reddit.com");
+  });
 });

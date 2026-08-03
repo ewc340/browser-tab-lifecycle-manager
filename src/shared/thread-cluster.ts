@@ -206,11 +206,56 @@ export function consolidateSessionThreads(
   return redirects;
 }
 
+export function findThreadViaOpenerChain(
+  visit: VisitRecord,
+  threads: Map<string, ThreadRecord>,
+  visits: Map<string, VisitRecord>,
+): ThreadRecord | undefined {
+  if (visit.openerVisitId === undefined) return undefined;
+
+  const opener = visits.get(visit.openerVisitId);
+  if (opener === undefined || opener.threadId === undefined) return undefined;
+
+  const thread = threads.get(opener.threadId);
+  if (thread === undefined) return undefined;
+
+  const visitEnd = visit.endedAt ?? visit.lastSeenAt;
+  if (visit.startedAt > thread.lastSeenAt + SESSION_CLUSTER_GAP_MS) return undefined;
+  if (visitEnd < thread.firstSeenAt - SESSION_CLUSTER_GAP_MS) return undefined;
+
+  return thread;
+}
+
+function mergeAsTopicThread(thread: ThreadRecord, visit: VisitRecord, now: number): ThreadRecord {
+  const merged = mergeVisitIntoThread(thread, visit, now);
+  const crossHost =
+    visit.host.length > 0 && !thread.hosts.includes(visit.host) && thread.hosts.length > 0;
+  const isTopic =
+    thread.clusterKind === "topic" ||
+    crossHost ||
+    thread.entityKeys.some((key) => key.startsWith("search:"));
+
+  return {
+    ...merged,
+    clusterKind: isTopic ? "topic" : merged.clusterKind,
+  };
+}
+
 export function assignVisitToThreadMap(
   visit: VisitRecord,
   threads: Map<string, ThreadRecord>,
   now: number,
+  visits?: Map<string, VisitRecord>,
 ): VisitRecord {
+  if (visits !== undefined) {
+    const openerThread = findThreadViaOpenerChain(visit, threads, visits);
+    if (openerThread !== undefined) {
+      const merged = mergeAsTopicThread(openerThread, visit, now);
+      threads.set(merged.threadId, merged);
+      return { ...visit, threadId: merged.threadId };
+    }
+  }
+
   const entitySeed = seedKeyForVisit(visit);
   if (entitySeed !== undefined) {
     const threadId = threadIdForSeed(entitySeed);

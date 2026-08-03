@@ -53,8 +53,9 @@ export async function closeAndAssignVisit(visit: VisitRecord, now: number): Prom
 }
 
 export async function assignVisitToThread(visit: VisitRecord, now: number): Promise<VisitRecord> {
+  const visitsMap = new Map(Object.entries(await loadVisits()));
   const threadsMap = new Map(Object.entries(await loadThreads()));
-  const linked = assignVisitToThreadMap(visit, threadsMap, now);
+  const linked = assignVisitToThreadMap(visit, threadsMap, now, visitsMap);
 
   if (linked.threadId !== undefined) {
     const thread = threadsMap.get(linked.threadId);
@@ -86,12 +87,49 @@ export async function listVisitsForThreads(threadIds: readonly string[]): Promis
   return Object.values(visits).filter((visit) => visit.threadId !== undefined && idSet.has(visit.threadId));
 }
 
+export async function listOpenVisitsForTab(tabId: number): Promise<VisitRecord[]> {
+  const visits = await loadVisits();
+  return Object.values(visits).filter((visit) => visit.tabId === tabId && visit.endedAt === undefined);
+}
+
+export async function reconcileOpenVisitsWithBrowser(now: number): Promise<number> {
+  const { queryAllBrowserTabs } = await import("./tab-repository.ts");
+  const tabs = await queryAllBrowserTabs();
+  const openTabIds = new Set(
+    tabs.map((tab) => tab.id).filter((id): id is number => id !== undefined),
+  );
+
+  const visits = await loadVisits();
+  let closed = 0;
+
+  for (const visit of Object.values(visits)) {
+    if (visit.endedAt !== undefined) continue;
+    if (openTabIds.has(visit.tabId)) continue;
+    await closeAndAssignVisit(
+      { ...visit, endedAt: now, closeReason: visit.closeReason ?? "UNKNOWN" },
+      now,
+    );
+    closed++;
+  }
+
+  if (closed > 0) {
+    log.debug("reconcileOpenVisitsWithBrowser closed", closed, "stale open visits");
+  }
+  return closed;
+}
+
 export async function getThreadsSnapshot(sinceMs: number): Promise<{
   threads: ThreadRecord[];
   visits: VisitRecord[];
   activeVisits: VisitRecord[];
   orphanVisitCount: number;
 }> {
+  const { queryAllBrowserTabs } = await import("./tab-repository.ts");
+  const tabs = await queryAllBrowserTabs();
+  const openTabIds = new Set(
+    tabs.map((tab) => tab.id).filter((id): id is number => id !== undefined),
+  );
+
   const [allVisits, threads] = await Promise.all([loadVisits(), loadThreads()]);
   const threadList = Object.values(threads)
     .filter((thread) => thread.lastSeenAt >= sinceMs)
@@ -106,7 +144,12 @@ export async function getThreadsSnapshot(sinceMs: number): Promise<{
   );
 
   const activeVisits = Object.values(allVisits)
-    .filter((visit) => visit.lastSeenAt >= sinceMs && visit.endedAt === undefined)
+    .filter(
+      (visit) =>
+        visit.lastSeenAt >= sinceMs &&
+        visit.endedAt === undefined &&
+        openTabIds.has(visit.tabId),
+    )
     .sort((a, b) => b.lastSeenAt - a.lastSeenAt);
 
   const orphanVisitCount = Object.values(allVisits).filter(
@@ -125,8 +168,10 @@ export async function runThreadClusterPass(now: number): Promise<{ threads: numb
     .filter((visit) => visit.threadId === undefined && visit.endedAt !== undefined)
     .sort((a, b) => a.startedAt - b.startedAt);
 
+  const visitsMap = new Map(Object.entries(visits));
+
   for (const visit of endedVisits) {
-    const linked = assignVisitToThreadMap(visit, threadsMap, now);
+    const linked = assignVisitToThreadMap(visit, threadsMap, now, visitsMap);
     if (linked.threadId !== undefined) {
       visits[visit.visitId] = linked;
       assigned++;

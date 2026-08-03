@@ -6,6 +6,7 @@ import type { ThreadRecord, VisitRecord } from "../../shared/thread-types.ts";
 import { displayHostForTab } from "../../shared/sanitize.ts";
 import { formatDate, formatShortDuration } from "../../shared/time.ts";
 import { STRINGS } from "../../shared/strings.ts";
+import { isBroadcastEnvelope } from "../../shared/messages.ts";
 import { groupThreadsByHost, groupVisitsByHost } from "../../shared/visit-groups.ts";
 import { useTick } from "../hooks/useAppState.ts";
 import { useMessaging } from "../hooks/useMessaging.ts";
@@ -15,18 +16,25 @@ const DEFAULT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 function VisitListItem({
   visit,
   extensionId,
-  badge,
 }: {
   visit: VisitRecord;
   extensionId?: string;
-  badge?: string;
 }) {
+  const status =
+    visit.endedAt === undefined
+      ? STRINGS.threadsView.statusOpen
+      : STRINGS.threadsView.statusClosed;
+
   return (
     <li className="thread-visit">
       <span className="thread-visit__title">{visit.title}</span>
       <span className="thread-visit__host">{displayHostForTab(visit.url, extensionId)}</span>
       <span className="thread-visit__meta">
-        {badge !== undefined && <span className="thread-visit__badge">{badge}</span>}
+        <span
+          className={`thread-visit__badge${visit.endedAt === undefined ? "" : " thread-visit__badge--closed"}`}
+        >
+          {status}
+        </span>
         {formatDate(visit.startedAt)} · dwell {formatShortDuration(visit.totalDwellMs)}
         {visit.closeReason !== undefined && ` · ${visit.closeReason}`}
       </span>
@@ -102,6 +110,15 @@ export function ThreadsView() {
       .finally(() => setLoading(false));
   }, [fetchThreads]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    const onMessage = (raw: unknown) => {
+      if (!isBroadcastEnvelope(raw) || raw.broadcast.type !== "APP_STATE_CHANGED") return;
+      void fetchThreads(false);
+    };
+    chrome.runtime.onMessage.addListener(onMessage);
+    return () => chrome.runtime.onMessage.removeListener(onMessage);
+  }, [fetchThreads]);
 
   const refresh = () => {
     setLoading(true);
@@ -188,7 +205,6 @@ export function ThreadsView() {
                           key={visit.visitId}
                           visit={visit}
                           {...(extensionId !== undefined ? { extensionId } : {})}
-                          badge={STRINGS.threadsView.openTabBadge}
                         />
                       ))}
                     </ul>
@@ -228,7 +244,10 @@ export function ThreadsView() {
                             >
                               <span className="thread-card__label">{thread.label}</span>
                               <span className="thread-card__meta">
-                                {thread.clusterKind === "session" && (
+                                {thread.clusterKind === "topic" && (
+                          <span className="thread-card__kind">{STRINGS.threadsView.topicBadge}</span>
+                        )}
+                        {thread.clusterKind === "session" && (
                                   <span className="thread-card__kind">session burst</span>
                                 )}
                                 {thread.seedKey !== undefined && thread.clusterKind !== "session" && (

@@ -2,7 +2,7 @@
  * Visit and thread records for Milestone 5 — past context footprints.
  *
  * Visits are URL-level (SPA navigations within a tab create separate visits).
- * Threads group visits by entity keys or same-window session bursts (M5).
+ * Threads group visits by entity keys, opener-linked topics (M6), or session bursts (M5).
  */
 
 export type VisitCloseReason = "USER" | "EXTENSION" | "NAVIGATION" | "UNKNOWN";
@@ -17,6 +17,8 @@ export interface VisitRecord {
   tabId: number;
   windowId: number;
   openerTabId?: number | undefined;
+  /** Visit id of the opener tab's active visit when this visit started (M6). */
+  openerVisitId?: string | undefined;
   groupId: number;
 
   entityKeys: string[];
@@ -50,7 +52,7 @@ export interface ThreadRecord {
   seedKey?: string | undefined;
   /** Browser window for session-clustered threads. */
   windowId?: number | undefined;
-  clusterKind?: "entity" | "session" | undefined;
+  clusterKind?: "entity" | "session" | "topic" | undefined;
 }
 
 export interface ThreadIndexEntry {

@@ -1,11 +1,16 @@
 /**
- * Captures URL-level visits from tab events for thread clustering (M5).
+ * Captures URL-level visits from tab events for thread clustering (M5+).
  */
 import type { VisitCloseReason, VisitRecord } from "../shared/thread-types.ts";
 import { extractEntityKeys } from "../shared/entity-keys.ts";
 import { normalizeUrl } from "../shared/url-normalizer.ts";
 import { hostnameOf, sanitizeTitle, sanitizeUrl } from "../shared/sanitize.ts";
-import { closeAndAssignVisit, persistVisit } from "./thread-store-service.ts";
+import {
+  closeAndAssignVisit,
+  listOpenVisitsForTab,
+  persistVisit,
+  reconcileOpenVisitsWithBrowser,
+} from "./thread-store-service.ts";
 import { getSession, setSession } from "./storage.ts";
 
 export const SESSION_KEY_VISIT_CAPTURE = "visitCapture:v1";
@@ -38,7 +43,21 @@ function createVisitId(tabId: number, startedAt: number, normalizedUrl: string):
   return `v_${startedAt}_${tabId}_${slug}`;
 }
 
-function buildVisitFromTab(tab: chrome.tabs.Tab, now: number, existing?: VisitRecord): VisitRecord | undefined {
+function resolveOpenerVisitId(
+  openerTabId: number | undefined,
+  state: CaptureSessionState,
+): string | undefined {
+  if (openerTabId === undefined) return undefined;
+  const active = state.activeByTab[String(openerTabId)];
+  return active?.visit.visitId;
+}
+
+function buildVisitFromTab(
+  tab: chrome.tabs.Tab,
+  now: number,
+  state: CaptureSessionState,
+  existing?: VisitRecord,
+): VisitRecord | undefined {
   const rawUrl = tab.url ?? "";
   if (rawUrl.length === 0) return undefined;
 
@@ -50,6 +69,8 @@ function buildVisitFromTab(tab: chrome.tabs.Tab, now: number, existing?: VisitRe
   const url = sanitizeUrl(rawUrl);
   const host = hostnameOf(rawUrl).toLowerCase();
   const entityKeys = extractEntityKeys(rawUrl, title);
+  const openerVisitId =
+    existing?.openerVisitId ?? resolveOpenerVisitId(tab.openerTabId, state);
 
   const visitId =
     existing?.visitId ?? createVisitId(tabId, now, normalizedUrl);
@@ -63,6 +84,7 @@ function buildVisitFromTab(tab: chrome.tabs.Tab, now: number, existing?: VisitRe
     tabId,
     windowId: tab.windowId,
     openerTabId: tab.openerTabId === undefined ? undefined : tab.openerTabId,
+    openerVisitId,
     groupId: tab.groupId,
     entityKeys,
     host,
@@ -88,10 +110,10 @@ function creditDwell(active: ActiveVisitState, now: number): void {
 }
 
 export async function captureTabCreated(tab: chrome.tabs.Tab, now: number): Promise<void> {
-  const visit = buildVisitFromTab(tab, now);
+  const state = await loadCaptureState();
+  const visit = buildVisitFromTab(tab, now, state);
   if (visit === undefined) return;
 
-  const state = await loadCaptureState();
   state.activeByTab[String(visit.tabId)] = { visit, lastFocusedAt: now };
   await saveCaptureState(state);
   await persistVisit(visit);
@@ -110,7 +132,7 @@ export async function captureTabUpdated(
   const active = state.activeByTab[String(tabId)];
 
   if (active !== undefined && active.visit.normalizedUrl === normalizedUrl) {
-    const updated = buildVisitFromTab(tab, now, active.visit);
+    const updated = buildVisitFromTab(tab, now, state, active.visit);
     if (updated === undefined) return;
     active.visit = { ...updated, focusCount: active.visit.focusCount };
     active.lastFocusedAt = now;
@@ -123,10 +145,10 @@ export async function captureTabUpdated(
     await endActiveVisitForTab(tabId, "NAVIGATION", now, state);
   }
 
-  const visit = buildVisitFromTab(tab, now);
+  const freshState = await loadCaptureState();
+  const visit = buildVisitFromTab(tab, now, freshState);
   if (visit === undefined) return;
 
-  const freshState = await loadCaptureState();
   freshState.activeByTab[String(tabId)] = { visit, lastFocusedAt: now };
   await saveCaptureState(freshState);
   await persistVisit(visit);
@@ -166,6 +188,27 @@ export async function captureTabActivated(
   await saveCaptureState(state);
 }
 
+async function closeAllOpenVisitsForTab(
+  tabId: number,
+  closeReason: VisitCloseReason,
+  now: number,
+  primaryVisitId?: string,
+): Promise<void> {
+  const openVisits = await listOpenVisitsForTab(tabId);
+  for (const visit of openVisits) {
+    if (visit.visitId === primaryVisitId) continue;
+    await closeAndAssignVisit(
+      {
+        ...visit,
+        endedAt: now,
+        closeReason,
+        lastSeenAt: now,
+      },
+      now,
+    );
+  }
+}
+
 async function endActiveVisitForTab(
   tabId: number,
   closeReason: VisitCloseReason,
@@ -174,7 +217,10 @@ async function endActiveVisitForTab(
 ): Promise<void> {
   const captureState = state ?? await loadCaptureState();
   const active = captureState.activeByTab[String(tabId)];
-  if (active === undefined) return;
+  if (active === undefined) {
+    await closeAllOpenVisitsForTab(tabId, closeReason, now);
+    return;
+  }
 
   creditDwell(active, now);
 
@@ -190,6 +236,7 @@ async function endActiveVisitForTab(
     captureState.lastActiveTabId = undefined;
   }
   await saveCaptureState(captureState);
+  await closeAllOpenVisitsForTab(tabId, closeReason, now, closed.visitId);
   await closeAndAssignVisit(closed, now);
 }
 
@@ -230,6 +277,7 @@ export async function flushActiveVisitDwell(now: number): Promise<void> {
  */
 export async function refreshVisitCapture(now: number): Promise<number> {
   await flushActiveVisitDwell(now);
+  await reconcileOpenVisitsWithBrowser(now);
   return bootstrapVisitsFromOpenTabs(now);
 }
 
@@ -243,8 +291,27 @@ export async function bootstrapVisitsFromOpenTabs(now: number): Promise<number> 
     if (tab.id === undefined) continue;
     if (state.activeByTab[String(tab.id)] !== undefined) continue;
 
+    const existingOpen = await listOpenVisitsForTab(tab.id);
+    const reused = existingOpen.sort((a, b) => b.lastSeenAt - a.lastSeenAt)[0];
+
+    if (reused !== undefined) {
+      const visit = buildVisitFromTab(tab, now, state, reused);
+      if (visit === undefined) continue;
+      state.activeByTab[String(tab.id)] = {
+        visit: { ...visit, lastSeenAt: Math.max(reused.lastSeenAt, now) },
+        lastFocusedAt: now,
+      };
+      if (tab.active) {
+        state.lastActiveTabId = tab.id;
+        state.lastActiveWindowId = tab.windowId;
+      }
+      await persistVisit(state.activeByTab[String(tab.id)]!.visit);
+      bootstrapped++;
+      continue;
+    }
+
     const startedAt = tab.lastAccessed ?? now;
-    const visit = buildVisitFromTab(tab, startedAt);
+    const visit = buildVisitFromTab(tab, startedAt, state);
     if (visit === undefined) continue;
 
     const bootVisit: VisitRecord = {
@@ -275,4 +342,8 @@ export async function bootstrapVisitsFromOpenTabs(now: number): Promise<number> 
 export async function captureTabRemovedWithReason(tabId: number, now: number): Promise<void> {
   const reason = await resolveCloseReason(tabId);
   await captureTabRemoved(tabId, now, reason);
+}
+
+export async function reconcileVisitCapture(now: number): Promise<void> {
+  await reconcileOpenVisitsWithBrowser(now);
 }

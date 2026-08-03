@@ -114,12 +114,15 @@ export const STRINGS = {
   },
   threadsView: {
     hint:
-      "Threads group ended visits by entity keys (e.g. PROJ-412, reddit post id, search query) or same-window bursts. Open tabs appear below until closed. Debug view — last 7 days.",
+      "Threads group visits by entity keys, opener-linked topics (e.g. search → result), or session bursts. Open tabs show OPEN; closed visits show CLOSED. Last 7 days.",
     loading: "Loading threads…",
     empty: "No threads yet. Open tabs are listed while still open; threads form when tabs close or navigate.",
     openTabsHeading: (count: number) =>
       `Open tab visits (${count}) — grouped by site`,
     endedHeading: "Ended threads — grouped by site",
+    statusOpen: "open",
+    statusClosed: "closed",
+    topicBadge: "topic",
     openTabBadge: "open",
     orphans: (count: number) =>
       `${count} ended visit${count === 1 ? "" : "s"} could not be clustered (e.g. privileged URLs with no host).`,

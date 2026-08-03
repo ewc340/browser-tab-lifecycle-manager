@@ -14,6 +14,7 @@ All notable changes to Browser Tab Lifecycle Manager are documented here.
 - Keyboard shortcut to open/toggle side panel (Alt+Shift+T)
 - Context menu and command to lock tabs from automatic closure
 - **Milestone 5:** Visit capture, entity-key threads, and Threads debug view (last 7 days)
+- **Milestone 6:** Opener-chain topic threads, stale visit repair, OPEN/CLOSED status in Threads
 
 ### Safety
 

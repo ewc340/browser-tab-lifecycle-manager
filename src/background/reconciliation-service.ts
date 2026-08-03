@@ -66,7 +66,8 @@ export async function runReconciliation(now: number): Promise<void> {
   const { putRecords } = await import("./tab-repository.ts");
   await putRecords(records);
 
-  const { bootstrapVisitsFromOpenTabs } = await import("./visit-capture-service.ts");
+  const { bootstrapVisitsFromOpenTabs, reconcileVisitCapture } = await import("./visit-capture-service.ts");
+  await reconcileVisitCapture(now);
   await bootstrapVisitsFromOpenTabs(now);
 
   const { runThreadClusterPass } = await import("./thread-store-service.ts");
