@@ -687,6 +687,11 @@ body {
 
 .activity-view,
 .recovery-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
   padding: var(--space-3) var(--space-4) var(--space-5);
 }
 
@@ -697,6 +702,7 @@ body {
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--space-3);
+  flex-shrink: 0;
 }
 
 .activity-view__filters {
@@ -862,6 +868,9 @@ body {
 }
 
 .recovery-view__list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
   list-style: none;
   margin: 0 0 var(--space-3);
   padding: 0;
@@ -884,6 +893,13 @@ body {
 
 .activity-view__more {
   margin-top: var(--space-3);
+  flex-shrink: 0;
+}
+
+.activity-view__list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 .tab-row__skip {
@@ -1410,5 +1426,198 @@ kbd {
   padding: var(--space-2) 0;
   border-bottom: 1px solid var(--color-border);
   font-size: var(--font-size-sm);
+}
+
+/* ── Threads view (M5 debug) ───────────────────────────────────────────────── */
+
+.threads-view {
+  padding: var(--space-3);
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.threads-view__hint {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+.threads-view__empty,
+.threads-view__error,
+.threads-view__orphans {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.threads-view__error {
+  color: var(--color-error);
+}
+
+.threads-view__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.threads-view__open {
+  margin-bottom: var(--space-4);
+}
+
+.threads-view__open-heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.threads-view__ended {
+  margin-top: var(--space-4);
+}
+
+.threads-host-group {
+  margin-bottom: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+}
+
+.threads-host-group__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.threads-host-group__host {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.threads-host-group__count {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.threads-host-group__body {
+  padding: 0 var(--space-3) var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.thread-visit__badge {
+  display: inline-block;
+  margin-right: var(--space-1);
+  padding: 1px var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--badge-idle-bg);
+  color: var(--badge-idle-fg);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.thread-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
+  background: var(--color-surface);
+}
+
+.thread-card__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.thread-card__header:hover {
+  background: var(--color-bg);
+}
+
+.thread-card__label {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+}
+
+.thread-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.thread-card__seed {
+  color: var(--color-accent);
+  font-family: var(--font-mono, monospace);
+}
+
+.thread-card__kind {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.thread-card__body {
+  padding: 0 var(--space-3) var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.thread-card__stats {
+  margin: var(--space-2) 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.thread-card__visits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.thread-visit {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.thread-visit__title {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.thread-visit__host {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.thread-visit__meta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.threads-view__refresh {
+  margin-top: var(--space-3);
 }
 

@@ -39,6 +39,7 @@ import {
   deleteRecoveryRecords,
   clearAllRecoveryRecords,
 } from "./recovery-service.ts";
+import { getThreadsSnapshot } from "./thread-store-service.ts";
 import { getDiagnosticsText, buildUsageSummary } from "./diagnostics-service.ts";
 import { exportExtensionData, importSettingsFromJson } from "./data-export-service.ts";
 import { loadRuntimeState, saveRuntimeState } from "./runtime-state-service.ts";
@@ -56,6 +57,7 @@ const INTERACTIVE_REQUESTS = new Set<ExtensionRequest["type"]>([
   "GET_APP_STATE",
   "GET_ACTIVITY",
   "GET_RECOVERY",
+  "GET_THREADS",
   "GET_DIAGNOSTICS",
   "GET_USAGE_SUMMARY",
   "EXPORT_DATA",
@@ -116,6 +118,21 @@ async function route(request: ExtensionRequest): Promise<ResponseData[ExtensionR
 
     case "GET_RECOVERY":
       return { records: await listRecoveryRecords() };
+
+    case "GET_THREADS": {
+      const sinceMs = request.sinceMs ?? Date.now() - 7 * 24 * 60 * 60 * 1000;
+      if (request.refreshCapture === true) {
+        const { refreshVisitCapture } = await import("./visit-capture-service.ts");
+        const { runThreadClusterPass } = await import("./thread-store-service.ts");
+        await refreshVisitCapture(now);
+        await runThreadClusterPass(now);
+      }
+      const snapshot = await getThreadsSnapshot(sinceMs);
+      return {
+        ...snapshot,
+        capturedThrough: Date.now(),
+      };
+    }
 
     case "ACTIVATE_TAB": {
       const tab = await chrome.tabs.get(request.tabId).catch(() => null);

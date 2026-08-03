@@ -9,7 +9,7 @@ import { applyLedgerToRecords } from "./activity-ledger.ts";
 import { reconcileFromBrowser } from "./tab-repository.ts";
 import { updateSettings } from "./settings-service.ts";
 import { loadRuntimeState, saveRuntimeState } from "./runtime-state-service.ts";
-import { ensureLifecycleAlarm } from "./alarm-service.ts";
+import { ensureLifecycleAlarm, ensureThreadClusterAlarm } from "./alarm-service.ts";
 import { runMigrations } from "./migration-service.ts";
 import { runRetentionMaintenance } from "./maintenance-service.ts";
 import { appendActivityEvent } from "./activity-service.ts";
@@ -66,6 +66,12 @@ export async function runReconciliation(now: number): Promise<void> {
   const { putRecords } = await import("./tab-repository.ts");
   await putRecords(records);
 
+  const { bootstrapVisitsFromOpenTabs } = await import("./visit-capture-service.ts");
+  await bootstrapVisitsFromOpenTabs(now);
+
+  const { runThreadClusterPass } = await import("./thread-store-service.ts");
+  await runThreadClusterPass(now);
+
   await runRetentionMaintenance(now);
   await runLifecycleSweep({ trigger: "reconciliation" });
 }
@@ -82,6 +88,19 @@ export async function handleExtensionInstall(reason: chrome.runtime.InstalledDet
   runtime.lastKnownVersion = version;
 
   if (reason === "update") {
+    const {
+      isNativeSidePanelApiComplete,
+      SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK,
+      SESSION_KEY_NATIVE_SIDE_PANEL_PROVEN,
+    } = await import("./side-panel-service.ts");
+    const { setSession } = await import("./storage.ts");
+    if (isNativeSidePanelApiComplete()) {
+      await setSession({
+        [SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK]: false,
+        [SESSION_KEY_NATIVE_SIDE_PANEL_PROVEN]: true,
+      });
+    }
+
     const records = await reconcileFromBrowser(now);
     const cancelled = cancelAllPendingClosures(records);
     const { putRecords } = await import("./tab-repository.ts");
@@ -101,6 +120,7 @@ export async function handleExtensionInstall(reason: chrome.runtime.InstalledDet
 
   await saveRuntimeState(runtime);
   await ensureLifecycleAlarm();
+  await ensureThreadClusterAlarm();
   await runReconciliation(now);
 }
 
@@ -110,6 +130,7 @@ export async function handleBrowserStartup(): Promise<void> {
   runtime.browserStartedAt = now;
   await saveRuntimeState(runtime);
   await ensureLifecycleAlarm();
+  await ensureThreadClusterAlarm();
   await runReconciliation(now);
 }
 

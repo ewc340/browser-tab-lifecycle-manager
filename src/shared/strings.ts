@@ -112,4 +112,17 @@ export const STRINGS = {
       "Arc sidebar tabs that are not loaded are invisible to extensions — Chromium never reports them or their last-active time until you click the tab. Switch to that Space, load tabs you want managed, then refresh. An optional macOS companion (planned) could list unloaded sidebar tabs from Arc’s local data.",
     refreshInventory: "Refresh tab list",
   },
+  threadsView: {
+    hint:
+      "Threads group ended visits by entity keys (e.g. PROJ-412, reddit post id, search query) or same-window bursts. Open tabs appear below until closed. Debug view — last 7 days.",
+    loading: "Loading threads…",
+    empty: "No threads yet. Open tabs are listed while still open; threads form when tabs close or navigate.",
+    openTabsHeading: (count: number) =>
+      `Open tab visits (${count}) — grouped by site`,
+    endedHeading: "Ended threads — grouped by site",
+    openTabBadge: "open",
+    orphans: (count: number) =>
+      `${count} ended visit${count === 1 ? "" : "s"} could not be clustered (e.g. privileged URLs with no host).`,
+    refresh: "Refresh threads",
+  },
 } as const;
