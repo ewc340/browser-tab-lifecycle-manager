@@ -3,6 +3,7 @@
  * otherwise in a new tab (Arc and other forks without a working sidePanel).
  */
 import * as log from "../shared/log.ts";
+import { recordPanelOpenEvent } from "./panel-open-debug.ts";
 import { getSession, setSession } from "./storage.ts";
 
 export const SESSION_KEY_SIDE_PANEL_FALLBACK_TAB = "sidePanelFallbackTabId";
@@ -67,29 +68,43 @@ function clearRememberedPanelTab(): void {
  */
 function openPanelTabFromUserGesture(): void {
   const url = panelUrl();
+  recordPanelOpenEvent("open_tab", `popupFallbackMode=${popupFallbackMode} panelTabId=${panelTabId ?? "none"}`);
 
   if (panelTabId !== undefined) {
     chrome.tabs.get(panelTabId, (tab) => {
       if (chrome.runtime.lastError || tab.id === undefined) {
+        recordPanelOpenEvent("open_tab", "cached tab missing", chrome.runtime.lastError?.message);
         clearRememberedPanelTab();
         chrome.tabs.create({ url, active: true }, (created) => {
-          if (created.id !== undefined) rememberPanelTab(created.id);
+          if (chrome.runtime.lastError) {
+            recordPanelOpenEvent("tabs_create", "after cache miss", chrome.runtime.lastError.message);
+            return;
+          }
+          if (created.id !== undefined) {
+            recordPanelOpenEvent("tabs_create", `ok tabId=${created.id}`);
+            rememberPanelTab(created.id);
+          }
         });
         return;
       }
 
       void chrome.tabs.update(tab.id, { active: true });
       void chrome.windows.update(tab.windowId, { focused: true });
+      recordPanelOpenEvent("open_tab", `focused existing tabId=${tab.id}`);
     });
     return;
   }
 
   chrome.tabs.create({ url, active: true }, (created) => {
     if (chrome.runtime.lastError) {
+      recordPanelOpenEvent("tabs_create", "new tab", chrome.runtime.lastError.message);
       log.error("tabs.create for panel failed", chrome.runtime.lastError.message);
       return;
     }
-    if (created.id !== undefined) rememberPanelTab(created.id);
+    if (created.id !== undefined) {
+      recordPanelOpenEvent("tabs_create", `ok tabId=${created.id}`);
+      rememberPanelTab(created.id);
+    }
   });
 }
 
@@ -241,6 +256,7 @@ function openNativeSidePanelFromUserGesture(windowIdHint?: number): void {
  * Entry point for toolbar click and keyboard shortcut — must preserve user gesture.
  */
 export function openSidePanelFromUserGesture(windowIdHint?: number): void {
+  recordPanelOpenEvent("open_gesture", `windowHint=${windowIdHint ?? "none"} fallback=${shouldUsePopupFallback()}`);
   if (shouldUsePopupFallback()) {
     openPanelTabFromUserGesture();
     return;

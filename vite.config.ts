@@ -17,6 +17,7 @@ function renameHtmlOutputs(): Plugin {
   const moves = [
     ["src/sidepanel/index.html", "sidepanel.html"],
     ["src/onboarding/index.html", "onboarding.html"],
+    ["src/panel-open-debug/index.html", "panel-open-debug.html"],
   ] as const;
   return {
     name: "rename-html-outputs",
@@ -87,6 +88,7 @@ export default defineConfig({
       input: {
         sidepanel: resolve(import.meta.dirname, "src/sidepanel/index.html"),
         onboarding: resolve(import.meta.dirname, "src/onboarding/index.html"),
+        "panel-open-debug": resolve(import.meta.dirname, "src/panel-open-debug/index.html"),
       },
       output: {
         entryFileNames: "[name].js",

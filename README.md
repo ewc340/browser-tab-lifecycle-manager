@@ -88,7 +88,29 @@ If the shortcut does nothing:
 3. Assign **Open Browser Tab Lifecycle Manager side panel** to `Alt+Shift+T` (Arc does not always apply manifest shortcuts automatically)
 4. If that entry is blank, assign **Open Browser Tab Lifecycle Manager** (`_execute_action`) instead — both should open the manager
 
-### Expectations and caveats
+### Debugging panel open on Arc
+
+Production builds do not log to the console. Use the **panel open debug page** instead:
+
+1. Open `arc://extensions` and copy the extension **ID** (32-character string).
+2. In Arc’s address bar, open:
+   `chrome-extension://YOUR_EXTENSION_ID/panel-open-debug.html`
+   (Arc may also accept the same `chrome-extension://` scheme — try it first.)
+3. Click **Refresh report**, then try **Test: open manager tab** and **Test: simulate shortcut handler**.
+4. Copy the full JSON report and share it in a GitHub issue or with whoever is debugging.
+
+The report includes registered keyboard shortcuts, session fallback flags, and a chronological event log (`panelOpenDebug:v1`).
+
+**Also helpful when reporting:**
+
+| What | How |
+| --- | --- |
+| Arc version | Arc menu → **About Arc** |
+| Extension version | `package.json` / `arc://extensions` version column |
+| Shortcut assignment | `arc://extensions/shortcuts` — note whether **Open … side panel** is blank or assigned |
+| Toolbar icon | Does clicking the extension icon do anything? |
+| Service worker errors | `arc://extensions` → extension → **Service worker** → **Inspect** → Console tab |
+| Manual manager URL | Does `chrome-extension://YOUR_ID/sidepanel.html` open the UI in a tab? |
 
 - **No store install yet** — unpacked load only until a Chrome Web Store (or other store) listing exists.
 - **Side panel UX** may vary slightly by browser (width, pinning, shortcut handling).

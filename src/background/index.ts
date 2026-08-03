@@ -25,6 +25,7 @@ import {
   initSidePanelWindowTracking,
   openSidePanelFromUserGesture,
 } from "./side-panel-service.ts";
+import { initPanelOpenDiagnostics, recordPanelOpenEvent } from "./panel-open-debug.ts";
 
 initListeners();
 initMessaging();
@@ -32,8 +33,10 @@ initContextMenus();
 initContextMenuClicks();
 initSidePanelMode();
 initSidePanelWindowTracking();
+initPanelOpenDiagnostics();
 
 chrome.action.onClicked.addListener((tab) => {
+  recordPanelOpenEvent("action_onClicked", `windowId=${tab.windowId}`);
   openSidePanelFromUserGesture(tab.windowId);
 });
 
@@ -82,6 +85,7 @@ chrome.windows.getLastFocused({ windowTypes: ["normal"] }, (win) => {
 
 chrome.commands.onCommand.addListener((command) => {
   if (command === "open-side-panel") {
+    recordPanelOpenEvent("command_onCommand", "open-side-panel");
     log.debug("open-side-panel command received");
     openSidePanelFromUserGesture(lastFocusedWindowId);
     return;
