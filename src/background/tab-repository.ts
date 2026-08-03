@@ -211,6 +211,8 @@ export async function patchRecord(
  */
 export async function markRemoved(tabId: number, now: number): Promise<void> {
   await patchRecord(tabId, { removedAt: now, active: false });
+  const { invalidateAppStateCache } = await import("./app-state-cache.ts");
+  invalidateAppStateCache();
 }
 
 /**

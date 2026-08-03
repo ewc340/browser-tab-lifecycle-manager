@@ -181,13 +181,6 @@ export async function getAppState(options?: GetAppStateOptions): Promise<AppStat
     }
   }
 
-  if (!options?.force) {
-    const snapshot = getCachedAppState(SW_SNAPSHOT_MAX_AGE_MS);
-    if (snapshot !== null) {
-      return { ...snapshot, now };
-    }
-  }
-
   return buildAppState(now, { forceReconcile: options?.force ?? false });
 }
 

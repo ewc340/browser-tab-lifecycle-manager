@@ -18,7 +18,7 @@ interface UseAppStateResult {
   loading: boolean;
   error: string | null;
   versionSkew: boolean;
-  refresh: (options?: { force?: boolean }) => void;
+  refresh: (options?: { force?: boolean; preferCache?: boolean }) => void;
 }
 
 export function useAppState(): UseAppStateResult {
@@ -45,15 +45,16 @@ export function useAppState(): UseAppStateResult {
   }, []);
 
   const refresh = useCallback(
-    (options?: { force?: boolean }) => {
+    (options?: { force?: boolean; preferCache?: boolean }) => {
       if (fetchingRef.current) return;
       fetchingRef.current = true;
       if (!hasStateRef.current) setLoading(true);
 
       const force = options?.force ?? false;
+      const preferCache = options?.preferCache ?? false;
       send({
         type: "GET_APP_STATE",
-        preferCache: !force,
+        preferCache,
         forceRefresh: force,
       })
         .then(applyAppState)
@@ -77,7 +78,7 @@ export function useAppState(): UseAppStateResult {
         applyAppState(cached);
         setLoading(false);
       }
-      refresh();
+      refresh({ preferCache: true });
     });
 
     return () => {
