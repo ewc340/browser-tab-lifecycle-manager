@@ -15,6 +15,7 @@ import type {
   RecoveryRecord,
   RuntimeState,
 } from "./types.ts";
+import type { ThreadsSnapshot } from "./thread-types.ts";
 import type { SerializedError } from "./errors.ts";
 
 export const PROTOCOL_VERSION = 1;
@@ -28,6 +29,7 @@ export type ExtensionRequest =
   | { type: "GET_APP_STATE"; preferCache?: boolean; forceRefresh?: boolean }
   | { type: "GET_ACTIVITY"; cursor?: string; limit?: number }
   | { type: "GET_RECOVERY" }
+  | { type: "GET_THREADS"; sinceMs?: number }
   | { type: "ACTIVATE_TAB"; tabId: number }
   | { type: "LOCK_TABS"; tabIds: number[] }
   | { type: "UNLOCK_TABS"; tabIds: number[] }
@@ -64,6 +66,7 @@ export interface ResponseData {
   GET_APP_STATE: AppState;
   GET_ACTIVITY: { events: ActivityEvent[]; nextCursor?: string | undefined };
   GET_RECOVERY: { records: RecoveryRecord[] };
+  GET_THREADS: ThreadsSnapshot;
   ACTIVATE_TAB: null;
   LOCK_TABS: { changed: number };
   UNLOCK_TABS: { changed: number };

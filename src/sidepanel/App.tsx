@@ -14,6 +14,7 @@ import { ToastStack } from "./components/ToastStack.tsx";
 import { TabsView } from "./views/TabsView.tsx";
 import { ActivityView } from "./views/ActivityView.tsx";
 import { RecoveryView } from "./views/RecoveryView.tsx";
+import { ThreadsView } from "./views/ThreadsView.tsx";
 import { SettingsView } from "./views/SettingsView.tsx";
 import { EmptyState } from "./components/EmptyState.tsx";
 import { useAppState, useTick } from "./hooks/useAppState.ts";
@@ -21,10 +22,11 @@ import { useMessaging } from "./hooks/useMessaging.ts";
 import { PRODUCT_SHORT_NAME } from "../shared/product.ts";
 import { STRINGS } from "../shared/strings.ts";
 
-type NavTab = "tabs" | "activity" | "recovery" | "settings";
+type NavTab = "tabs" | "threads" | "activity" | "recovery" | "settings";
 
 const NAV_TABS: { id: NavTab; label: string }[] = [
   { id: "tabs", label: "Tabs" },
+  { id: "threads", label: "Threads" },
   { id: "activity", label: "Activity" },
   { id: "recovery", label: "Recovery" },
   { id: "settings", label: "Settings" },
@@ -170,6 +172,7 @@ export function App() {
                   onRefresh={() => refresh({ force: true })}
                 />
               )}
+              {activeNav === "threads" && <ThreadsView />}
               {activeNav === "activity" && <ActivityView />}
               {activeNav === "recovery" && <RecoveryView />}
               {activeNav === "settings" && (

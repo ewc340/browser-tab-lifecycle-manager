@@ -1,0 +1,27 @@
+# Milestone 5 — Visit capture and thread store
+
+## Shipped in M5
+
+- **Visit capture** on tab create, update (URL change), activate, remove — one record per URL visit (SPA navigations create new visits).
+- **Entity key extraction** from titles and URLs (Jira keys, `github:org/repo`, Google Doc ids, allowlisted query params).
+- **Trivial clustering** — one thread per primary entity key when a visit ends.
+- **Durable storage** in `chrome.storage.local` (`visits:v1`, `threads:v1`) with caps and LRU eviction.
+- **Alarm-driven cluster pass** every 15 minutes for orphaned ended visits.
+- **Threads debug view** in the side panel (last 7 days).
+
+## Not in M5
+
+- Salience filter / 90% drop
+- Opener chain and alternation clustering
+- “What did I know about this?” button
+- Automatic resurfacing nudges
+- User merge/split/rename
+
+## Verification
+
+```bash
+npm run lint
+npm run test
+```
+
+Browse with the extension loaded, close tabs with Jira/GitHub URLs, open **Threads** tab.

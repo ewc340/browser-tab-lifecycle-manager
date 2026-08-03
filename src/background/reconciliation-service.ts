@@ -9,7 +9,7 @@ import { applyLedgerToRecords } from "./activity-ledger.ts";
 import { reconcileFromBrowser } from "./tab-repository.ts";
 import { updateSettings } from "./settings-service.ts";
 import { loadRuntimeState, saveRuntimeState } from "./runtime-state-service.ts";
-import { ensureLifecycleAlarm } from "./alarm-service.ts";
+import { ensureLifecycleAlarm, ensureThreadClusterAlarm } from "./alarm-service.ts";
 import { runMigrations } from "./migration-service.ts";
 import { runRetentionMaintenance } from "./maintenance-service.ts";
 import { appendActivityEvent } from "./activity-service.ts";
@@ -101,6 +101,7 @@ export async function handleExtensionInstall(reason: chrome.runtime.InstalledDet
 
   await saveRuntimeState(runtime);
   await ensureLifecycleAlarm();
+  await ensureThreadClusterAlarm();
   await runReconciliation(now);
 }
 
@@ -110,6 +111,7 @@ export async function handleBrowserStartup(): Promise<void> {
   runtime.browserStartedAt = now;
   await saveRuntimeState(runtime);
   await ensureLifecycleAlarm();
+  await ensureThreadClusterAlarm();
   await runReconciliation(now);
 }
 

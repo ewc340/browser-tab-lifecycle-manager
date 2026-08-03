@@ -1412,3 +1412,123 @@ kbd {
   font-size: var(--font-size-sm);
 }
 
+/* ── Threads view (M5 debug) ───────────────────────────────────────────────── */
+
+.threads-view {
+  padding: var(--space-3);
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.threads-view__hint {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+.threads-view__empty,
+.threads-view__error,
+.threads-view__orphans {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.threads-view__error {
+  color: var(--color-error);
+}
+
+.threads-view__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.thread-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
+  background: var(--color-surface);
+}
+
+.thread-card__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.thread-card__header:hover {
+  background: var(--color-bg);
+}
+
+.thread-card__label {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+}
+
+.thread-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.thread-card__seed {
+  color: var(--color-accent);
+  font-family: var(--font-mono, monospace);
+}
+
+.thread-card__body {
+  padding: 0 var(--space-3) var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.thread-card__stats {
+  margin: var(--space-2) 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.thread-card__visits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.thread-visit {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.thread-visit__title {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.thread-visit__host {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.thread-visit__meta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.threads-view__refresh {
+  margin-top: var(--space-3);
+}
+

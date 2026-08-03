@@ -17,7 +17,7 @@ import {
   handleBrowserStartup,
   handleExtensionInstall,
 } from "./reconciliation-service.ts";
-import { isLifecycleAlarm } from "./alarm-service.ts";
+import { isLifecycleAlarm, isThreadClusterAlarm } from "./alarm-service.ts";
 import { runLifecycleSweep } from "./lifecycle-sweep.ts";
 import {
   enableSidePanelOnExistingWindows,
@@ -101,10 +101,21 @@ chrome.commands.onCommand.addListener((command) => {
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (!isLifecycleAlarm(alarm)) return;
-  taskQueue
-    .push(async () => {
-      await runLifecycleSweep({ trigger: "alarm" });
-    })
-    .catch((e: unknown) => log.error("lifecycle alarm handler failed", e));
+  if (isLifecycleAlarm(alarm)) {
+    taskQueue
+      .push(async () => {
+        await runLifecycleSweep({ trigger: "alarm" });
+      })
+      .catch((e: unknown) => log.error("lifecycle alarm handler failed", e));
+    return;
+  }
+
+  if (isThreadClusterAlarm(alarm)) {
+    taskQueue
+      .push(async () => {
+        const { runThreadClusterPass } = await import("./thread-store-service.ts");
+        await runThreadClusterPass(Date.now());
+      })
+      .catch((e: unknown) => log.error("thread cluster alarm failed", e));
+  }
 });

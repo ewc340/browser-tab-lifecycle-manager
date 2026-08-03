@@ -21,6 +21,12 @@ import {
 } from "./tab-repository.ts";
 import { refreshLockFromTab } from "./lock-service.ts";
 import { recordTabActivation } from "./activity-ledger.ts";
+import {
+  captureTabActivated,
+  captureTabCreated,
+  captureTabRemovedWithReason,
+  captureTabUpdated,
+} from "./visit-capture-service.ts";
 import type { AppState } from "../shared/types.ts";
 
 // ── Debounced broadcast ───────────────────────────────────────────────────────
@@ -95,6 +101,7 @@ export function initListeners(): void {
         const windowType = await getWindowType(tab.windowId);
         const record = recordFromTab(tab, windowType, undefined, now);
         await putRecord(record);
+        await captureTabCreated(tab, now);
         scheduleBroadcast();
       })
       .catch((e: unknown) => log.error("onCreated handler failed", e));
@@ -112,6 +119,7 @@ export function initListeners(): void {
           await refreshLockFromTab(tab, record);
         }
         await putRecord(record);
+        await captureTabUpdated(tabId, tab, now);
         scheduleBroadcast();
       })
       .catch((e: unknown) => log.error("onUpdated handler failed", e));
@@ -123,9 +131,6 @@ export function initListeners(): void {
         const now = Date.now();
         const records = await getRecords();
 
-        // Single read-modify-write: deactivate the previously active tab and
-        // activate the new one in memory, then persist once. With many tabs,
-        // this is one storage read + one write instead of N+1 writes.
         for (const record of records.values()) {
           if (record.windowId === activeInfo.windowId && record.tabId !== activeInfo.tabId) {
             if (record.active) {
@@ -150,6 +155,7 @@ export function initListeners(): void {
         }
 
         await putRecords(records);
+        await captureTabActivated(activeInfo, now);
         scheduleBroadcast();
       })
       .catch((e: unknown) => log.error("onActivated handler failed", e));
@@ -160,6 +166,7 @@ export function initListeners(): void {
       .push(async () => {
         const now = Date.now();
         await markRemoved(tabId, now);
+        await captureTabRemovedWithReason(tabId, now);
         scheduleBroadcast();
       })
       .catch((e: unknown) => log.error("onRemoved handler failed", e));
@@ -224,6 +231,7 @@ export function initListeners(): void {
       .push(async () => {
         const now = Date.now();
         await markRemoved(removedTabId, now);
+        await captureTabRemovedWithReason(removedTabId, now);
         // Trigger a full reconcile so the new tab gets its record.
         await reconcileFromBrowser(now);
         scheduleBroadcast();
