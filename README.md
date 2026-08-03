@@ -79,7 +79,14 @@ Click **Load unpacked** (Edge may label it **Load extension**) and select the fo
 - Use the extension toolbar icon, or
 - Set / use the keyboard shortcut (`Alt+Shift+T` is suggested in the manifest; configure under **Extension shortcuts** on that browser’s extensions page).
 
-**Arc:** Arc does not support Chrome’s native side panel API. On Arc, the extension opens the manager in a **small popup window** instead of an embedded side panel. The shortcut and toolbar icon should both open that popup after you reload the extension. If the shortcut does nothing, open `arc://extensions/shortcuts` and assign **Open Browser Tab Lifecycle Manager side panel**.
+**Arc:** Arc does not support Chrome’s native side panel API. On Arc, the extension opens the manager in a **new browser tab** instead. After updating, reload the extension at `arc://extensions`, then use **Alt+Shift+T** or the toolbar icon.
+
+If the shortcut does nothing:
+
+1. Open `arc://extensions/shortcuts`
+2. Find **Browser Tab Lifecycle Manager**
+3. Assign **Open Browser Tab Lifecycle Manager side panel** to `Alt+Shift+T` (Arc does not always apply manifest shortcuts automatically)
+4. If that entry is blank, assign **Open Browser Tab Lifecycle Manager** (`_execute_action`) instead — both should open the manager
 
 ### Expectations and caveats
 

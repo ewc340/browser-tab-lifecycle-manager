@@ -68,6 +68,7 @@ export const manifest = {
     "open-side-panel": {
       suggested_key: { default: "Alt+Shift+T", mac: "Alt+Shift+T" },
       description: `Open ${PRODUCT_NAME} side panel`,
+      global: true,
     },
     "toggle-tab-keep": {
       description: "Keep the current tab (protect it from automatic closing)",

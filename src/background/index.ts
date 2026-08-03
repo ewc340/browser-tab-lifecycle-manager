@@ -82,6 +82,7 @@ chrome.windows.getLastFocused({ windowTypes: ["normal"] }, (win) => {
 
 chrome.commands.onCommand.addListener((command) => {
   if (command === "open-side-panel") {
+    log.debug("open-side-panel command received");
     openSidePanelFromUserGesture(lastFocusedWindowId);
     return;
   }
