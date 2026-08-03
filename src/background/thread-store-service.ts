@@ -2,7 +2,7 @@
  * Durable visit and thread storage in chrome.storage.local.
  */
 import type { ThreadRecord, VisitRecord } from "../shared/thread-types.ts";
-import { assignVisitToThreadMap } from "../shared/thread-cluster.ts";
+import { assignVisitToThreadMap, consolidateSessionThreads } from "../shared/thread-cluster.ts";
 import { getLocal, setLocal } from "./storage.ts";
 import * as log from "../shared/log.ts";
 
@@ -130,6 +130,17 @@ export async function runThreadClusterPass(now: number): Promise<{ threads: numb
     if (linked.threadId !== undefined) {
       visits[visit.visitId] = linked;
       assigned++;
+    }
+  }
+
+  const redirects = consolidateSessionThreads(threadsMap, now);
+  if (redirects.size > 0) {
+    for (const [visitId, visit] of Object.entries(visits)) {
+      if (visit.threadId === undefined) continue;
+      const nextId = redirects.get(visit.threadId);
+      if (nextId !== undefined) {
+        visits[visitId] = { ...visit, threadId: nextId };
+      }
     }
   }
 

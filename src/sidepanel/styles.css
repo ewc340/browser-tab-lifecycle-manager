@@ -1472,6 +1472,49 @@ kbd {
   color: var(--color-text);
 }
 
+.threads-view__ended {
+  margin-top: var(--space-4);
+}
+
+.threads-host-group {
+  margin-bottom: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+}
+
+.threads-host-group__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.threads-host-group__host {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.threads-host-group__count {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.threads-host-group__body {
+  padding: 0 var(--space-3) var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
 .thread-visit__badge {
   display: inline-block;
   margin-right: var(--space-1);

@@ -21,8 +21,8 @@ const POPUP_HEIGHT = 760;
 const SIDE_PANEL_CONTEXT_TYPE = "SIDE_PANEL" as chrome.runtime.ContextType;
 const SIDE_PANEL_PROBE_DELAY_MS = 300;
 
-/** Use popup/tab fallback until native side panel is proven with a real SIDE_PANEL context. */
-let popupFallbackMode = true;
+/** Use popup fallback only when native side panel is unavailable or user chose fallback. */
+let popupFallbackMode = false;
 /** In-memory popup window id — never read session before windows.create (gesture token). */
 let panelPopupWindowId: number | undefined;
 /** Tab fallback only when popup window creation fails. */
@@ -201,45 +201,13 @@ function openPanelFallbackFromUserGesture(): void {
   openPanelPopupFromUserGesture();
 }
 
-async function probeNativeSidePanelSupport(): Promise<void> {
+function probeNativeSidePanelSupport(): void {
   if (!isNativeSidePanelApiComplete()) {
     enablePopupFallbackMode();
     return;
   }
-
-  const win = await chrome.windows.getLastFocused({ windowTypes: ["normal"] });
-  if (win.id === undefined) return;
-
-  try {
-    await chrome.sidePanel.open({ windowId: win.id });
-    await delay(SIDE_PANEL_PROBE_DELAY_MS);
-
-    if (typeof chrome.runtime.getContexts !== "function") {
-      enablePopupFallbackMode();
-      return;
-    }
-
-    const contexts = await chrome.runtime.getContexts({
-      contextTypes: [SIDE_PANEL_CONTEXT_TYPE],
-    });
-    if (contexts.length === 0) {
-      log.info("sidePanel.open returned but no SIDE_PANEL context — popup fallback");
-      enablePopupFallbackMode();
-      return;
-    }
-
-    markNativeSidePanelVerified();
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (/user gesture/i.test(msg)) {
-      // API exists (Chrome) but needs a gesture — do not treat as proven; Arc stubs
-      // can throw the same error. Keep popup fallback until a real SIDE_PANEL opens.
-      recordPanelOpenEvent("probe", "native needs user gesture — not proven yet");
-      return;
-    }
-    log.info("sidePanel probe failed — popup fallback", msg);
-    enablePopupFallbackMode();
-  }
+  // Do not call sidePanel.open without a user gesture — Chrome rejects it and Arc stubs
+  // misreport. Native mode is attempted on the first shortcut / action click instead.
 }
 
 async function hydratePopupFallbackMode(): Promise<void> {
@@ -248,9 +216,11 @@ async function hydratePopupFallbackMode(): Promise<void> {
     return;
   }
 
-  const preferFallback = await getSession<boolean>(SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK, true);
-  const proven = await getSession<boolean>(SESSION_KEY_NATIVE_SIDE_PANEL_PROVEN, false);
-  popupFallbackMode = preferFallback || !proven;
+  const preferFallback = await getSession<boolean>(SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK, false);
+  popupFallbackMode = preferFallback || !isNativeSidePanelApiComplete();
+  if (!preferFallback && isNativeSidePanelApiComplete()) {
+    popupFallbackMode = false;
+  }
 }
 
 async function resolveTargetWindowId(hint?: number): Promise<number | undefined> {
@@ -303,12 +273,8 @@ function scheduleNativeOpenVerification(): void {
   void verifyNativeSidePanelOpened().then((opened) => {
     if (opened) {
       markNativeSidePanelVerified();
-      return;
     }
-    if (popupFallbackMode) return;
-    log.info("sidePanel.open reported success but panel did not open — popup fallback");
-    enablePopupFallbackMode();
-    openPanelFallbackFromUserGesture();
+    // Do not open popup fallback here — native open already ran on the user gesture.
   });
 }
 
@@ -317,6 +283,7 @@ function openNativeSidePanelFromUserGesture(windowIdHint?: number): void {
     chrome.sidePanel
       .open({ windowId: windowIdHint })
       .then(() => {
+        markNativeSidePanelVerified();
         scheduleNativeOpenVerification();
       })
       .catch((e: unknown) => {
@@ -336,6 +303,7 @@ function openNativeSidePanelFromUserGesture(windowIdHint?: number): void {
     chrome.sidePanel
       .open({ windowId: win.id })
       .then(() => {
+        markNativeSidePanelVerified();
         scheduleNativeOpenVerification();
       })
       .catch((e: unknown) => {
@@ -394,10 +362,14 @@ export function initSidePanelMode(): void {
       const proven = result[SESSION_KEY_NATIVE_SIDE_PANEL_PROVEN] === true;
       const preferFallback = result[SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK] as boolean | undefined;
 
-      if (proven && preferFallback === false) {
+      if (!isNativeSidePanelApiComplete()) {
+        popupFallbackMode = true;
+      } else if (preferFallback === true) {
+        popupFallbackMode = true;
+      } else if (proven) {
         popupFallbackMode = false;
       } else {
-        popupFallbackMode = true;
+        popupFallbackMode = false;
       }
 
       const windowId = result[SESSION_KEY_SIDE_PANEL_FALLBACK_WINDOW] as number | undefined;

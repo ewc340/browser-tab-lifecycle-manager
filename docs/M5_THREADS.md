@@ -3,8 +3,9 @@
 ## Shipped in M5
 
 - **Visit capture** on tab create, update (URL change), activate, remove — one record per URL visit (SPA navigations create new visits).
-- **Bootstrap** — on reconciliation, open tabs without an active visit record are registered (uses `lastAccessed` when available).
-- **Entity key extraction** from titles and URLs (Jira keys, `github:org/repo`, Google Doc ids, allowlisted query params).
+- **Bootstrap** — on reconciliation and when refreshing Threads, open tabs without an active visit record are registered (uses `lastAccessed` when available).
+- **Open tab visits** — shown in Threads while still open; threads form when tabs close.
+- **Entity key extraction** from titles and URLs (Jira keys, `github:org/repo`, Google Doc ids, Reddit post ids, normalized search queries, allowlisted query params).
 - **Entity-key threads** — one thread per primary entity key when a visit ends.
 - **Session threads** — keyless visits in the same window within a 90-minute burst cluster together (labeled by hosts).
 - **Durable storage** in `chrome.storage.local` (`visits:v1`, `threads:v1`) with caps and LRU eviction.

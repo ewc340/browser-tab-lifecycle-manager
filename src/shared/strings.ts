@@ -118,7 +118,8 @@ export const STRINGS = {
     loading: "Loading threads…",
     empty: "No threads yet. Open tabs are listed while still open; threads form when tabs close or navigate.",
     openTabsHeading: (count: number) =>
-      `Open tab visits (${count})`,
+      `Open tab visits (${count}) — grouped by site`,
+    endedHeading: "Ended threads — grouped by site",
     openTabBadge: "open",
     orphans: (count: number) =>
       `${count} ended visit${count === 1 ? "" : "s"} could not be clustered (e.g. privileged URLs with no host).`,

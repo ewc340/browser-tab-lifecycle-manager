@@ -88,7 +88,12 @@ export function createThreadFromVisit(visit: VisitRecord, now: number): ThreadRe
 export function isSameSessionBurst(thread: ThreadRecord, visit: VisitRecord): boolean {
   if (thread.clusterKind !== "session") return false;
   if (thread.windowId !== visit.windowId) return false;
-  return visit.startedAt <= thread.lastSeenAt + SESSION_CLUSTER_GAP_MS;
+  const visitEnd = visit.endedAt ?? visit.lastSeenAt;
+  // Allow old startedAt (e.g. tab.lastAccessed) when the visit ended recently.
+  return (
+    visitEnd >= thread.firstSeenAt - SESSION_CLUSTER_GAP_MS &&
+    visit.startedAt <= thread.lastSeenAt + SESSION_CLUSTER_GAP_MS
+  );
 }
 
 export function findSessionThreadForVisit(
@@ -128,6 +133,77 @@ export function createSessionThreadFromVisit(visit: VisitRecord, now: number): T
     windowId: visit.windowId,
     clusterKind: "session",
   };
+}
+
+export function mergeSessionThreads(a: ThreadRecord, b: ThreadRecord, now: number): ThreadRecord {
+  const visitIds = [...new Set([...a.visitIds, ...b.visitIds])];
+  const entityKeys = [...new Set([...a.entityKeys, ...b.entityKeys])].sort();
+  const hosts = [...new Set([...a.hosts, ...b.hosts])].sort();
+  const visitCount = visitIds.length;
+  const totalDwellMs = a.totalDwellMs + b.totalDwellMs;
+  const firstSeenAt = Math.min(a.firstSeenAt, b.firstSeenAt);
+  const lastSeenAt = Math.max(a.lastSeenAt, b.lastSeenAt);
+  const autoLabel = sessionAutoLabel({
+    ...a,
+    hosts,
+    visitCount,
+    lastSeenAt,
+  });
+
+  return {
+    ...a,
+    entityKeys,
+    hosts,
+    visitIds,
+    visitCount,
+    totalDwellMs,
+    firstSeenAt,
+    lastSeenAt,
+    updatedAt: now,
+    autoLabel,
+    label: a.label === a.autoLabel ? autoLabel : a.label,
+  };
+}
+
+/**
+ * Merge fragmented session threads in the same window that fall within the session gap.
+ * Returns old thread id → surviving thread id for visit relinking.
+ */
+export function consolidateSessionThreads(
+  threads: Map<string, ThreadRecord>,
+  now: number,
+): Map<string, string> {
+  const redirects = new Map<string, string>();
+  const byWindow = new Map<number, ThreadRecord[]>();
+
+  for (const thread of threads.values()) {
+    if (thread.clusterKind !== "session" || thread.windowId === undefined) continue;
+    const list = byWindow.get(thread.windowId) ?? [];
+    list.push(thread);
+    byWindow.set(thread.windowId, list);
+  }
+
+  for (const list of byWindow.values()) {
+    const sorted = [...list].sort((a, b) => a.firstSeenAt - b.firstSeenAt);
+    let current = sorted[0];
+    if (current === undefined) continue;
+
+    for (let i = 1; i < sorted.length; i++) {
+      const next = sorted[i]!;
+      if (next.firstSeenAt > current.lastSeenAt + SESSION_CLUSTER_GAP_MS) {
+        current = next;
+        continue;
+      }
+
+      const merged = mergeSessionThreads(current, next, now);
+      threads.delete(next.threadId);
+      redirects.set(next.threadId, current.threadId);
+      threads.set(current.threadId, merged);
+      current = merged;
+    }
+  }
+
+  return redirects;
 }
 
 export function assignVisitToThreadMap(
