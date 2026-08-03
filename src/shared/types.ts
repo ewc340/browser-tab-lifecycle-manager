@@ -272,6 +272,11 @@ export interface StateCounts {
 }
 
 /** The single payload the panel renders from. */
+export interface TabInventoryMeta {
+  chromiumTabCount: number;
+  browserWindowCount: number;
+}
+
 export interface AppState {
   extensionVersion: string;
   extensionId: string;
@@ -282,4 +287,5 @@ export interface AppState {
   counts: StateCounts;
   automationActive: boolean;
   now: number;
+  inventory?: TabInventoryMeta;
 }

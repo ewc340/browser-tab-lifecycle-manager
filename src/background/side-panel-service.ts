@@ -85,7 +85,7 @@ function clearRememberedPanelTab(): void {
 
 function scheduleReconcileForPanel(): void {
   taskQueue
-    .push(async () => {
+    .pushInteractive(async () => {
       await reconcileFromBrowser(Date.now());
       broadcast({ type: "APP_STATE_CHANGED" });
     })

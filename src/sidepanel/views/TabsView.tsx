@@ -19,6 +19,7 @@ interface TabsViewProps {
   state: AppState;
   now: number;
   onActivateTab: (tabId: number) => void;
+  onRefresh: () => void;
 }
 
 type PendingBulk =
@@ -57,7 +58,7 @@ function buildBreakdown(counts: StateCounts): string {
   return parts.join(" · ");
 }
 
-export function TabsView({ state, now, onActivateTab }: TabsViewProps) {
+export function TabsView({ state, now, onActivateTab, onRefresh }: TabsViewProps) {
   const { send } = useMessaging();
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState<StateFilter>("all");
@@ -159,7 +160,12 @@ export function TabsView({ state, now, onActivateTab }: TabsViewProps) {
           {state.counts.total} tab{state.counts.total !== 1 ? "s" : ""}
         </span>
         {breakdown.length > 0 && <span className="tabs-view__breakdown">{breakdown}</span>}
+        <button type="button" className="btn btn--ghost tabs-view__refresh" onClick={onRefresh}>
+          {STRINGS.tabsView.refreshInventory}
+        </button>
       </header>
+
+      <p className="tabs-view__inventory-note">{STRINGS.tabsView.arcInventoryNote}</p>
 
       <div className="tabs-toolbar">
         <label className="tabs-toolbar__search">

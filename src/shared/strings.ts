@@ -101,4 +101,9 @@ export const STRINGS = {
       UNAVAILABLE: "Unavailable — this page cannot be managed",
     },
   },
+  tabsView: {
+    arcInventoryNote:
+      "Arc sidebar tabs that are not loaded may be invisible to extensions. Switch to that Space or window, click the tab to load it, then refresh.",
+    refreshInventory: "Refresh tab list",
+  },
 } as const;

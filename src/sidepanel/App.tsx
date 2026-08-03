@@ -163,7 +163,12 @@ export function App() {
           {state !== null && (
             <>
               {activeNav === "tabs" && (
-                <TabsView state={state} now={now} onActivateTab={handleActivateTab} />
+                <TabsView
+                  state={state}
+                  now={now}
+                  onActivateTab={handleActivateTab}
+                  onRefresh={() => refresh({ force: true })}
+                />
               )}
               {activeNav === "activity" && <ActivityView />}
               {activeNav === "recovery" && <RecoveryView />}

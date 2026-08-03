@@ -46,7 +46,7 @@ async function buildAppStateFromRecords(
   now: number,
 ): Promise<AppState> {
   const [windows, settings, runtime] = await Promise.all([
-    chrome.windows.getAll(),
+    chrome.windows.getAll({ populate: true }).catch(() => chrome.windows.getAll()),
     loadSettings(),
     loadRuntimeState(),
   ]);
@@ -149,6 +149,10 @@ async function buildAppStateFromRecords(
     counts,
     automationActive: isAutomationActive(settings),
     now,
+    inventory: {
+      chromiumTabCount: tabs.length,
+      browserWindowCount: windowViews.length,
+    },
   };
 }
 
