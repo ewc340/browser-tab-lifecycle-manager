@@ -59,7 +59,36 @@ describe("thread clustering", () => {
       threads,
       5000,
     );
-    expect(linked.threadId).toBeUndefined();
-    expect(threads.size).toBe(0);
+    expect(linked.threadId).toBeDefined();
+    expect(threads.size).toBe(1);
+    const thread = threads.get(linked.threadId ?? "");
+    expect(thread?.clusterKind).toBe("session");
+  });
+
+  it("merges keyless visits in the same window session", () => {
+    const threads = new Map<string, ThreadRecord>();
+    const now = 5000;
+    const first = assignVisitToThreadMap(
+      makeVisit({ visitId: "v1", entityKeys: [], endedAt: 2000, host: "a.com" }),
+      threads,
+      now,
+    );
+    const second = assignVisitToThreadMap(
+      makeVisit({
+        visitId: "v2",
+        entityKeys: [],
+        startedAt: 2500,
+        lastSeenAt: 3000,
+        endedAt: 3000,
+        host: "b.com",
+      }),
+      threads,
+      now,
+    );
+    expect(first.threadId).toBe(second.threadId);
+    const thread = threads.get(first.threadId ?? "");
+    expect(thread?.visitCount).toBe(2);
+    expect(thread?.hosts).toContain("a.com");
+    expect(thread?.hosts).toContain("b.com");
   });
 });

@@ -114,11 +114,11 @@ export const STRINGS = {
   },
   threadsView: {
     hint:
-      "Threads group past visits by entity keys (e.g. PROJ-412, github:org/repo). Debug view — last 7 days. No automatic nudges yet.",
+      "Threads group visits by entity keys (e.g. PROJ-412) or same-window browsing bursts. Debug view — last 7 days. No automatic nudges yet.",
     loading: "Loading threads…",
     empty: "No threads yet. Browse with the extension enabled; visits cluster when tabs close or navigate.",
     orphans: (count: number) =>
-      `${count} ended visit${count === 1 ? "" : "s"} had no entity key and were not threaded.`,
+      `${count} ended visit${count === 1 ? "" : "s"} could not be clustered (e.g. privileged URLs with no host).`,
     refresh: "Refresh threads",
   },
 } as const;

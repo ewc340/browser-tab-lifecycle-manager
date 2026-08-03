@@ -96,7 +96,10 @@ export function ThreadsView() {
                 >
                   <span className="thread-card__label">{thread.label}</span>
                   <span className="thread-card__meta">
-                    {thread.seedKey !== undefined && (
+                    {thread.clusterKind === "session" && (
+                      <span className="thread-card__kind">session burst</span>
+                    )}
+                    {thread.seedKey !== undefined && thread.clusterKind !== "session" && (
                       <span className="thread-card__seed">{thread.seedKey}</span>
                     )}
                     <span>

@@ -208,6 +208,45 @@ export async function resolveCloseReason(tabId: number): Promise<VisitCloseReaso
   return "USER";
 }
 
+export async function bootstrapVisitsFromOpenTabs(now: number): Promise<number> {
+  const { queryAllBrowserTabs } = await import("./tab-repository.ts");
+  const tabs = await queryAllBrowserTabs();
+  const state = await loadCaptureState();
+  let bootstrapped = 0;
+
+  for (const tab of tabs) {
+    if (tab.id === undefined) continue;
+    if (state.activeByTab[String(tab.id)] !== undefined) continue;
+
+    const startedAt = tab.lastAccessed ?? now;
+    const visit = buildVisitFromTab(tab, startedAt);
+    if (visit === undefined) continue;
+
+    const bootVisit: VisitRecord = {
+      ...visit,
+      startedAt,
+      lastSeenAt: Math.max(startedAt, now),
+      focusCount: tab.active ? 1 : 0,
+      visitId: createVisitId(tab.id, startedAt, visit.normalizedUrl),
+    };
+
+    state.activeByTab[String(tab.id)] = { visit: bootVisit, lastFocusedAt: now };
+    if (tab.active) {
+      state.lastActiveTabId = tab.id;
+      state.lastActiveWindowId = tab.windowId;
+    }
+
+    await persistVisit(bootVisit);
+    bootstrapped++;
+  }
+
+  if (bootstrapped > 0) {
+    await saveCaptureState(state);
+  }
+
+  return bootstrapped;
+}
+
 export async function captureTabRemovedWithReason(tabId: number, now: number): Promise<void> {
   const reason = await resolveCloseReason(tabId);
   await captureTabRemoved(tabId, now, reason);

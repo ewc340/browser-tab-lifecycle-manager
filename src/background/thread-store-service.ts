@@ -116,9 +116,11 @@ export async function runThreadClusterPass(now: number): Promise<{ threads: numb
   const threadsMap = new Map(Object.entries(await loadThreads()));
   let assigned = 0;
 
-  for (const visit of Object.values(visits)) {
-    if (visit.threadId !== undefined) continue;
-    if (visit.endedAt === undefined) continue;
+  const endedVisits = Object.values(visits)
+    .filter((visit) => visit.threadId === undefined && visit.endedAt !== undefined)
+    .sort((a, b) => a.startedAt - b.startedAt);
+
+  for (const visit of endedVisits) {
     const linked = assignVisitToThreadMap(visit, threadsMap, now);
     if (linked.threadId !== undefined) {
       visits[visit.visitId] = linked;

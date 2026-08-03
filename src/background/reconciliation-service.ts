@@ -66,6 +66,9 @@ export async function runReconciliation(now: number): Promise<void> {
   const { putRecords } = await import("./tab-repository.ts");
   await putRecords(records);
 
+  const { bootstrapVisitsFromOpenTabs } = await import("./visit-capture-service.ts");
+  await bootstrapVisitsFromOpenTabs(now);
+
   await runRetentionMaintenance(now);
   await runLifecycleSweep({ trigger: "reconciliation" });
 }
