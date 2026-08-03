@@ -12,7 +12,7 @@ export interface TabListProps {
   bulkMode: boolean;
   selectedIds: ReadonlySet<number>;
   onActivate: (tabId: number) => void;
-  onToggleSelect: (tabId: number) => void;
+  onToggleSelect: (tabId: number, shiftKey?: boolean) => void;
   onLock: (tabId: number) => void;
   onUnlock: (tabId: number) => void;
   onSleep: (tabId: number) => void;

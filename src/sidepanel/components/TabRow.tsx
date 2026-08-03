@@ -16,7 +16,7 @@ interface TabRowProps {
   bulkMode?: boolean;
   selected?: boolean;
   onActivate: (tabId: number) => void;
-  onToggleSelect?: (tabId: number) => void;
+  onToggleSelect?: (tabId: number, shiftKey?: boolean) => void;
   onLock?: (tabId: number) => void;
   onUnlock?: (tabId: number) => void;
   onSleep?: (tabId: number) => void;
@@ -117,6 +117,7 @@ export function TabRow({
 }: TabRowProps) {
   const [faviconError, setFaviconError] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [closeTarget, setCloseTarget] = useState(false);
   const menuId = useId();
   const menuRef = useRef<HTMLDivElement>(null);
   const host = displayHostForTab(tab.url, extensionId);
@@ -146,13 +147,27 @@ export function TabRow({
   };
 
   return (
-    <div className={`tab-row${selected ? " tab-row--selected" : ""}`} role="listitem">
+    <div
+      className={[
+        "tab-row",
+        selected ? "tab-row--selected" : "",
+        closeTarget ? "tab-row--close-target" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      role="listitem"
+    >
       {bulkMode && (
         <label className="tab-row__select">
           <input
             type="checkbox"
+            className="tab-row__checkbox"
             checked={selected}
-            onChange={() => onToggleSelect?.(tab.tabId)}
+            readOnly
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleSelect?.(tab.tabId, event.shiftKey);
+            }}
             aria-label={`Select ${tab.title}`}
           />
         </label>
@@ -161,8 +176,16 @@ export function TabRow({
       <button
         type="button"
         className="tab-row__main"
-        aria-label={`${tab.title} — ${host}`}
-        onClick={() => onActivate(tab.tabId)}
+        aria-label={
+          bulkMode ? `Select ${tab.title} — ${host}` : `${tab.title} — ${host}`
+        }
+        onClick={(event) => {
+          if (bulkMode) {
+            onToggleSelect?.(tab.tabId, event.shiftKey);
+            return;
+          }
+          onActivate(tab.tabId);
+        }}
       >
         <div className="tab-row__favicon" aria-hidden="true">
           {faviconError ? (
@@ -292,6 +315,10 @@ export function TabRow({
           aria-label={tab.closeLocked ? `Close ${tab.title} manually` : `Close ${tab.title}`}
           title={tab.closeLocked ? STRINGS.tooltips.closeManual : STRINGS.tooltips.close}
           data-tooltip={tab.closeLocked ? STRINGS.tooltips.closeManual : STRINGS.tooltips.close}
+          onMouseEnter={() => setCloseTarget(true)}
+          onMouseLeave={() => setCloseTarget(false)}
+          onFocus={() => setCloseTarget(true)}
+          onBlur={() => setCloseTarget(false)}
           onClick={() => onClose?.(tab.tabId)}
         >
           <CloseIcon />
