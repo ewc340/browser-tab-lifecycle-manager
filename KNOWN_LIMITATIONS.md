@@ -8,7 +8,7 @@ Headline limitations for v0.1.0. See `docs/QUESTIONS_AND_GAPS.md` for the full l
 
 3. **Desktop Chrome only** — Manifest V3 desktop extension. No mobile, Firefox, or Safari support.
 
-4. **Arc browser sidebar tabs** — Arc keeps many tabs in its sidebar without loading them into Chromium. Extensions only see tabs that Chromium has loaded. Unloaded Arc sidebar tabs do not appear until you switch to that Space and activate the tab. Other Chromium browsers are unaffected.
+4. **Arc browser sidebar tabs** — Arc keeps many tabs in its sidebar without loading them into Chromium. Extensions only see tabs that Chromium has loaded. Unloaded Arc sidebar tabs do not appear until you switch to that Space and activate the tab, and Chromium does not expose `lastAccessed` for tabs that were never loaded — so idle/background/asleep timing cannot be measured from the extension alone. A future **optional macOS companion** (native messaging host reading Arc’s local sidebar data) could list unloaded entries and estimate inactivity from URL history; see `docs/BACKLOG.md` § Arc unloaded sidebar inventory. Other Chromium browsers are unaffected.
 
 5. **No cloud sync** — All data stays in the local browser profile. No account, backup service, or cross-device sync.
 

@@ -74,3 +74,71 @@ that research group so prior context compounds instead of being lost.
 **Priority:** P3 (future / needs design spike)
 
 **Related:** PRD §11 (activity feed), recovery history, `docs/QUESTIONS_AND_GAPS.md`
+
+---
+
+## Arc unloaded sidebar inventory (macOS companion)
+
+**Requested:** Show Arc sidebar tabs that Chromium has **not loaded** in the tab
+manager, and assign lifecycle display states (background / idle / asleep) without
+the user clicking each tab to load it first.
+
+**Current behavior (v0.1):**
+
+- Inventory comes from `chrome.tabs` reconciliation only.
+- Arc keeps many sidebar entries unloaded; they are invisible to extensions until
+  the user activates them in Arc (confirmed limitation).
+- Inactivity timers (`lastActivatedAt`, `lastAccessed`) exist only for tabs
+  Chromium has loaded at least once in the session.
+
+**Why the extension alone cannot do this:**
+
+- MV3 extensions cannot read `~/Library/Application Support/Arc/StorableSidebar.json`
+  or run AppleScript directly.
+- Unloaded sidebar entries are not in `chrome.tabs` — no tab id, no
+  `lastAccessed`, no `discard()`.
+
+**Possible macOS-only path (optional, user-installed companion):**
+
+1. **Native messaging host** (or documented CLI the user runs) reads Arc sidebar
+   data:
+   - **StorableSidebar.json** — full Space / folder / pinned tab inventory
+     (`savedURL`, `savedTitle`, Arc internal ids). Used by community tools
+     (`arc-mcp`, bookmark exporters, migration scripts).
+   - **AppleScript** — list tabs in loaded Spaces with `location` (sidebar vs
+     little arc). Does not expose reliable `lastAccessed` for unloaded entries.
+2. **Merge into extension inventory:**
+   - Match Arc-only rows to Chromium records by normalized URL (+ title fallback).
+   - Synthetic ids for sidebar-only rows (negative or string `arc:` prefix).
+   - New fields: `loadedInChromium: boolean`, `arcSidebarId?: string`,
+     `inventorySource: "chromium" | "arc_sidebar"`.
+3. **Display states for unloaded rows:**
+   - New display state e.g. `UNLOADED` or reuse `IDLE` with badge “not loaded”.
+   - **Inactivity time:** best-effort only:
+     - URL-keyed **ledger** (`lastActivatedAt` from prior sessions when that URL
+       was loaded) — good for “you opened this weeks ago” hints.
+     - Sidebar JSON metadata if Arc stores timestamps (needs spike; often absent).
+     - Otherwise show “inactive time unknown until loaded”.
+4. **Automation (sleep / close):**
+   - `chrome.tabs.discard` / `remove` do not apply to unloaded sidebar entries.
+   - Actions need the native host: remove tab from StorableSidebar (Arc restart
+     or sync caveats) or AppleScript “open URL then discard” (loads the tab —
+     defeats “unload” but matches Chrome sleep semantics).
+
+**Platform / product constraints:**
+
+- macOS only; Windows Arc paths differ (`AppData\Local\Packages\…`).
+- User must install and trust a native companion; document in onboarding as opt-in.
+- Arc Sync may overwrite direct JSON edits — same caveat as other Arc automation tools.
+- Privacy: companion reads local Arc data only; extension CSP stays `connect-src 'none`.
+
+**MVP scope suggestion:**
+
+- Phase 1: companion lists sidebar tabs → panel shows them as `UNLOADED` with URL
+  ledger inactive estimate; no automatic sleep/close.
+- Phase 2: user-initiated “remove from sidebar” / “load and sleep” via native host.
+- Phase 3: automatic rules for unloaded rows (policy + UX review).
+
+**Priority:** P2 on Arc (discoverability / parity with Chrome inventory)
+
+**Related:** `KNOWN_LIMITATIONS.md` §4, `src/shared/strings.ts` `arcInventoryNote`

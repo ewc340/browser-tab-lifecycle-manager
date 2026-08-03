@@ -103,7 +103,7 @@ export const STRINGS = {
   },
   tabsView: {
     arcInventoryNote:
-      "Arc sidebar tabs that are not loaded may be invisible to extensions. Switch to that Space or window, click the tab to load it, then refresh.",
+      "Arc sidebar tabs that are not loaded are invisible to extensions — Chromium never reports them or their last-active time until you click the tab. Switch to that Space, load tabs you want managed, then refresh. An optional macOS companion (planned) could list unloaded sidebar tabs from Arc’s local data.",
     refreshInventory: "Refresh tab list",
   },
 } as const;
