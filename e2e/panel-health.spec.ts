@@ -20,9 +20,23 @@ test.describe("panel health", () => {
 
   test("tab data loads without hanging on Loading", async ({ panelPage }) => {
     await expect(panelPage.getByText("Loading…", { exact: true })).toBeHidden({
-      timeout: PANEL_DATA_MS,
+      timeout: 10_000,
     });
-    await expect(panelPage.locator(".app__main")).not.toBeEmpty({ timeout: PANEL_DATA_MS });
+    await expect(panelPage.locator(".app__main")).not.toBeEmpty({ timeout: 10_000 });
+  });
+
+  test("reopen shows cached tabs quickly", async ({ panelPage }) => {
+    await expect(panelPage.getByText("Loading…", { exact: true })).toBeHidden({
+      timeout: 10_000,
+    });
+
+    await panelPage.reload({ waitUntil: "domcontentloaded" });
+    const started = Date.now();
+    await expect(panelPage.getByRole("heading", { name: "Tab Lifecycle", level: 1 })).toBeVisible({
+      timeout: 5_000,
+    });
+    await expect(panelPage.getByText("Loading…", { exact: true })).toBeHidden({ timeout: 5_000 });
+    expect(Date.now() - started).toBeLessThan(5_000);
   });
 
   test("shipped CSS applies settings and button styles", async ({ panelPage }) => {

@@ -12,7 +12,7 @@ import { ExtensionError, toExtensionError } from "../shared/errors.ts";
 import { reanchorPendingClose } from "../shared/lifecycle.ts";
 import * as log from "../shared/log.ts";
 import { taskQueue } from "./task-queue.ts";
-import { buildAppState } from "./app-state.ts";
+import { getAppState, invalidateAppStateCache } from "./app-state.ts";
 import { updateSettings, loadSettings } from "./settings-service.ts";
 import { lockTabs, unlockTabs } from "./lock-service.ts";
 import {
@@ -82,6 +82,9 @@ export function initMessaging(): void {
       : taskQueue.push.bind(taskQueue);
 
     enqueue(async () => {
+      if (!INTERACTIVE_REQUESTS.has(rawMsg.request.type)) {
+        invalidateAppStateCache();
+      }
       const data = await route(rawMsg.request);
       sendResponse({ ok: true, data } satisfies ExtensionResponse);
     }).catch((e: unknown) => {
@@ -100,7 +103,10 @@ async function route(request: ExtensionRequest): Promise<ResponseData[ExtensionR
   const now = Date.now();
   switch (request.type) {
     case "GET_APP_STATE":
-      return buildAppState(now);
+      return getAppState({
+        preferCachedSnapshot: request.preferCache ?? false,
+        force: request.forceRefresh ?? false,
+      });
 
     case "GET_ACTIVITY": {
       const page = await getActivityPage(request.cursor, request.limit ?? 50);

@@ -11,7 +11,7 @@ import type { ManagedTabRecord } from "../shared/types.ts";
 import { classifyManageability } from "../shared/eligibility.ts";
 import { normalizeUrl } from "../shared/url-normalizer.ts";
 import { sanitizeTitle, sanitizeUrl } from "../shared/sanitize.ts";
-import { getSession, setSession, SESSION_KEY_TAB_RECORDS } from "./storage.ts";
+import { getSession, setSession, SESSION_KEY_TAB_RECORDS, SESSION_KEY_LAST_RECONCILE_AT } from "./storage.ts";
 import * as log from "../shared/log.ts";
 
 // ── Serialization ─────────────────────────────────────────────────────────────
@@ -162,6 +162,9 @@ export async function reconcileFromBrowser(
 
   log.debug("reconciled", fresh.size, "tab records");
   await persistRecords(fresh);
+  await setSession({ [SESSION_KEY_LAST_RECONCILE_AT]: now });
+  const { invalidateAppStateCache } = await import("./app-state-cache.ts");
+  invalidateAppStateCache();
   return fresh;
 }
 

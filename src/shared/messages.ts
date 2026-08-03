@@ -25,7 +25,7 @@ export const SIDE_PANEL_TOGGLE_CLOSE = "SIDE_PANEL_TOGGLE_CLOSE" as const;
 export type HostRule = "NEVER_CLOSE" | "NEVER_SLEEP" | "NONE";
 
 export type ExtensionRequest =
-  | { type: "GET_APP_STATE" }
+  | { type: "GET_APP_STATE"; preferCache?: boolean; forceRefresh?: boolean }
   | { type: "GET_ACTIVITY"; cursor?: string; limit?: number }
   | { type: "GET_RECOVERY" }
   | { type: "ACTIVATE_TAB"; tabId: number }
