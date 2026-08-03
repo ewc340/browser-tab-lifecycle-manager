@@ -69,6 +69,9 @@ export async function runReconciliation(now: number): Promise<void> {
   const { bootstrapVisitsFromOpenTabs } = await import("./visit-capture-service.ts");
   await bootstrapVisitsFromOpenTabs(now);
 
+  const { runThreadClusterPass } = await import("./thread-store-service.ts");
+  await runThreadClusterPass(now);
+
   await runRetentionMaintenance(now);
   await runLifecycleSweep({ trigger: "reconciliation" });
 }

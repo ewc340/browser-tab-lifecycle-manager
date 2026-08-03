@@ -8,7 +8,7 @@
 - **Entity-key threads** — one thread per primary entity key when a visit ends.
 - **Session threads** — keyless visits in the same window within a 90-minute burst cluster together (labeled by hosts).
 - **Durable storage** in `chrome.storage.local` (`visits:v1`, `threads:v1`) with caps and LRU eviction.
-- **Alarm-driven cluster pass** every 15 minutes for ended visits not yet threaded.
+- **Alarm-driven cluster pass** every 15 minutes for ended visits not yet threaded; also runs on each reconciliation (bootstrap + backlog).
 - **Threads debug view** in the side panel (last 7 days).
 
 ## Not in M5
