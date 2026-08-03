@@ -39,6 +39,25 @@ test.describe("panel health", () => {
     expect(Date.now() - started).toBeLessThan(5_000);
   });
 
+  test("tab row shows full title on hover", async ({ panelPage }) => {
+    const http = await startTestHttpServer();
+    const testUrl = http.pageUrl("tooltip-tab");
+
+    try {
+      await openTestTab(panelPage, testUrl);
+      await syncPanelInventory(panelPage, "E2E Tooltip Tab");
+
+      const tabContent = panelPage.locator(".tab-row__content").filter({ hasText: "E2E Tooltip Tab" });
+      await expect(tabContent).toHaveAttribute("data-tooltip", "E2E Tooltip Tab");
+      await tabContent.hover();
+      await expect
+        .poll(async () => tabContent.evaluate((el) => getComputedStyle(el, "::after").visibility))
+        .toBe("visible");
+    } finally {
+      await stopTestHttpServer(http);
+    }
+  });
+
   test("shipped CSS applies settings and button styles", async ({ panelPage }) => {
     await panelPage.getByRole("button", { name: "Settings", exact: true }).click();
 

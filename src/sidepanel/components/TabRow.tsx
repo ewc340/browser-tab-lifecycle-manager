@@ -178,7 +178,11 @@ export function TabRow({
           )}
         </div>
 
-        <div className="tab-row__content">
+        <div
+          className="tab-row__content"
+          title={tab.title}
+          data-tooltip={tab.title}
+        >
           <span className="tab-row__title">{tab.title}</span>
           <span className="tab-row__host">{host}</span>
         </div>

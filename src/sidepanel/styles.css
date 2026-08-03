@@ -528,6 +528,13 @@ body {
   gap: 1px;
 }
 
+.tab-row__content[data-tooltip]::after {
+  left: 0;
+  transform: none;
+  text-align: left;
+  max-width: min(280px, 90vw);
+}
+
 .tab-row__title {
   font-size: var(--font-size-sm);
   font-weight: 500;
