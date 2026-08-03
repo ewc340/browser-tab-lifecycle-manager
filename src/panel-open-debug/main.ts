@@ -3,7 +3,9 @@
  * without relying on the keyboard shortcut or toolbar icon.
  */
 import {
+  SESSION_KEY_NATIVE_SIDE_PANEL_PROVEN,
   SESSION_KEY_SIDE_PANEL_FALLBACK_TAB,
+  SESSION_KEY_SIDE_PANEL_FALLBACK_WINDOW,
   SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK,
 } from "../background/side-panel-service.ts";
 import {
@@ -18,6 +20,8 @@ function renderReport(): void {
     [
       SESSION_KEY_PANEL_OPEN_DEBUG,
       SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK,
+      SESSION_KEY_NATIVE_SIDE_PANEL_PROVEN,
+      SESSION_KEY_SIDE_PANEL_FALLBACK_WINDOW,
       SESSION_KEY_SIDE_PANEL_FALLBACK_TAB,
     ],
     (session) => {

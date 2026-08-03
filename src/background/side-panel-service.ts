@@ -1,32 +1,34 @@
 /**
  * Opens the lifecycle manager UI in the native side panel when available,
- * otherwise in a new tab (Arc and other forks without a working sidePanel).
+ * otherwise in a sidebar-style popup window (Arc and other forks without sidePanel).
  */
 import * as log from "../shared/log.ts";
 import { recordPanelOpenEvent } from "./panel-open-debug.ts";
 import { getSession, setSession } from "./storage.ts";
 
+export const SESSION_KEY_SIDE_PANEL_FALLBACK_WINDOW = "sidePanelFallbackWindowId";
 export const SESSION_KEY_SIDE_PANEL_FALLBACK_TAB = "sidePanelFallbackTabId";
 export const SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK = "sidePanelPreferFallback";
+export const SESSION_KEY_NATIVE_SIDE_PANEL_PROVEN = "nativeSidePanelProven";
 
 const PANEL_PATH = "sidepanel.html";
+const POPUP_WIDTH = 420;
+const POPUP_HEIGHT = 760;
 
 const SIDE_PANEL_CONTEXT_TYPE = "SIDE_PANEL" as chrome.runtime.ContextType;
 const SIDE_PANEL_PROBE_DELAY_MS = 300;
 
-/** Default pessimistic until session or probe confirms native side panel works. */
+/** Use popup/tab fallback until native side panel is proven with a real SIDE_PANEL context. */
 let popupFallbackMode = true;
-/** Cached panel tab id for gesture-safe reopen (no tabs.query before create). */
+/** In-memory popup window id — never read session before windows.create (gesture token). */
+let panelPopupWindowId: number | undefined;
+/** Tab fallback only when popup window creation fails. */
 let panelTabId: number | undefined;
 
 function panelUrl(): string {
   return chrome.runtime.getURL(PANEL_PATH);
 }
 
-/**
- * Arc and some Chromium forks expose a broken `chrome.sidePanel` stub. Require the
- * full surface we rely on before attempting native open.
- */
 export function isNativeSidePanelApiComplete(): boolean {
   return (
     typeof chrome.sidePanel.open === "function" &&
@@ -44,12 +46,28 @@ function delay(ms: number): Promise<void> {
 
 function enablePopupFallbackMode(): void {
   popupFallbackMode = true;
-  void setSession({ [SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK]: true });
+  void setSession({
+    [SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK]: true,
+    [SESSION_KEY_NATIVE_SIDE_PANEL_PROVEN]: false,
+  });
 }
 
 function markNativeSidePanelVerified(): void {
   popupFallbackMode = false;
-  void setSession({ [SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK]: false });
+  void setSession({
+    [SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK]: false,
+    [SESSION_KEY_NATIVE_SIDE_PANEL_PROVEN]: true,
+  });
+}
+
+function rememberPanelPopup(windowId: number): void {
+  panelPopupWindowId = windowId;
+  void setSession({ [SESSION_KEY_SIDE_PANEL_FALLBACK_WINDOW]: windowId });
+}
+
+function clearRememberedPanelPopup(): void {
+  panelPopupWindowId = undefined;
+  void chrome.storage.session.remove(SESSION_KEY_SIDE_PANEL_FALLBACK_WINDOW);
 }
 
 function rememberPanelTab(tabId: number): void {
@@ -62,56 +80,95 @@ function clearRememberedPanelTab(): void {
   void chrome.storage.session.remove(SESSION_KEY_SIDE_PANEL_FALLBACK_TAB);
 }
 
+function createPanelPopupWindow(): void {
+  chrome.windows.create(
+    {
+      url: panelUrl(),
+      type: "popup",
+      width: POPUP_WIDTH,
+      height: POPUP_HEIGHT,
+      focused: true,
+    },
+    (popup) => {
+      if (chrome.runtime.lastError) {
+        recordPanelOpenEvent(
+          "popup_create",
+          "failed",
+          chrome.runtime.lastError.message ?? "unknown",
+        );
+        openPanelTabFromUserGesture();
+        return;
+      }
+      if (popup === undefined || popup.id === undefined) {
+        recordPanelOpenEvent("popup_create", "failed", "no window returned");
+        openPanelTabFromUserGesture();
+        return;
+      }
+      recordPanelOpenEvent("popup_create", `ok windowId=${popup.id}`);
+      rememberPanelPopup(popup.id);
+    },
+  );
+}
+
 /**
- * Opens the panel in a browser tab. Uses callback APIs and an in-memory tab id so
- * tabs.create runs immediately on the user-gesture chain (Arc rejects deferred opens).
+ * Sidebar-style popup window. Uses in-memory window id so create runs on the gesture chain.
  */
+function openPanelPopupFromUserGesture(): void {
+  recordPanelOpenEvent(
+    "open_popup",
+    `popupFallbackMode=${popupFallbackMode} panelPopupWindowId=${panelPopupWindowId ?? "none"}`,
+  );
+
+  if (panelPopupWindowId !== undefined) {
+    chrome.windows.get(panelPopupWindowId, (existing) => {
+      if (chrome.runtime.lastError || existing.id === undefined) {
+        recordPanelOpenEvent("open_popup", "cached window missing", chrome.runtime.lastError?.message);
+        clearRememberedPanelPopup();
+        createPanelPopupWindow();
+        return;
+      }
+      void chrome.windows.update(existing.id, { focused: true });
+      recordPanelOpenEvent("open_popup", `focused existing windowId=${existing.id}`);
+    });
+    return;
+  }
+
+  createPanelPopupWindow();
+}
+
 function openPanelTabFromUserGesture(): void {
   const url = panelUrl();
-  recordPanelOpenEvent("open_tab", `popupFallbackMode=${popupFallbackMode} panelTabId=${panelTabId ?? "none"}`);
+  recordPanelOpenEvent("open_tab", `panelTabId=${panelTabId ?? "none"}`);
 
   if (panelTabId !== undefined) {
     chrome.tabs.get(panelTabId, (tab) => {
       if (chrome.runtime.lastError || tab.id === undefined) {
-        recordPanelOpenEvent("open_tab", "cached tab missing", chrome.runtime.lastError?.message);
         clearRememberedPanelTab();
         chrome.tabs.create({ url, active: true }, (created) => {
-          if (chrome.runtime.lastError) {
-            recordPanelOpenEvent("tabs_create", "after cache miss", chrome.runtime.lastError.message);
-            return;
-          }
-          if (created.id !== undefined) {
-            recordPanelOpenEvent("tabs_create", `ok tabId=${created.id}`);
-            rememberPanelTab(created.id);
-          }
+          if (created.id !== undefined) rememberPanelTab(created.id);
         });
         return;
       }
-
       void chrome.tabs.update(tab.id, { active: true });
       void chrome.windows.update(tab.windowId, { focused: true });
-      recordPanelOpenEvent("open_tab", `focused existing tabId=${tab.id}`);
     });
     return;
   }
 
   chrome.tabs.create({ url, active: true }, (created) => {
     if (chrome.runtime.lastError) {
-      recordPanelOpenEvent("tabs_create", "new tab", chrome.runtime.lastError.message);
+      recordPanelOpenEvent("tabs_create", "failed", chrome.runtime.lastError.message);
       log.error("tabs.create for panel failed", chrome.runtime.lastError.message);
       return;
     }
-    if (created.id !== undefined) {
-      recordPanelOpenEvent("tabs_create", `ok tabId=${created.id}`);
-      rememberPanelTab(created.id);
-    }
+    if (created.id !== undefined) rememberPanelTab(created.id);
   });
 }
 
-/**
- * Probes whether native side panel actually works. Arc exposes a stub that "succeeds"
- * without opening UI; Chrome rejects open() without a user gesture.
- */
+function openPanelFallbackFromUserGesture(): void {
+  openPanelPopupFromUserGesture();
+}
+
 async function probeNativeSidePanelSupport(): Promise<void> {
   if (!isNativeSidePanelApiComplete()) {
     enablePopupFallbackMode();
@@ -134,7 +191,7 @@ async function probeNativeSidePanelSupport(): Promise<void> {
       contextTypes: [SIDE_PANEL_CONTEXT_TYPE],
     });
     if (contexts.length === 0) {
-      log.info("sidePanel.open returned but no SIDE_PANEL context — enabling tab fallback");
+      log.info("sidePanel.open returned but no SIDE_PANEL context — popup fallback");
       enablePopupFallbackMode();
       return;
     }
@@ -143,10 +200,12 @@ async function probeNativeSidePanelSupport(): Promise<void> {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (/user gesture/i.test(msg)) {
-      markNativeSidePanelVerified();
+      // API exists (Chrome) but needs a gesture — do not treat as proven; Arc stubs
+      // can throw the same error. Keep popup fallback until a real SIDE_PANEL opens.
+      recordPanelOpenEvent("probe", "native needs user gesture — not proven yet");
       return;
     }
-    log.info("sidePanel probe failed — enabling tab fallback", msg);
+    log.info("sidePanel probe failed — popup fallback", msg);
     enablePopupFallbackMode();
   }
 }
@@ -157,10 +216,9 @@ async function hydratePopupFallbackMode(): Promise<void> {
     return;
   }
 
-  const preferFallback = await getSession<boolean>(SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK, false);
-  if (preferFallback) {
-    popupFallbackMode = true;
-  }
+  const preferFallback = await getSession<boolean>(SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK, true);
+  const proven = await getSession<boolean>(SESSION_KEY_NATIVE_SIDE_PANEL_PROVEN, false);
+  popupFallbackMode = preferFallback || !proven;
 }
 
 async function resolveTargetWindowId(hint?: number): Promise<number | undefined> {
@@ -211,10 +269,14 @@ async function verifyNativeSidePanelOpened(): Promise<boolean> {
 
 function scheduleNativeOpenVerification(): void {
   void verifyNativeSidePanelOpened().then((opened) => {
-    if (opened || popupFallbackMode) return;
-    log.info("sidePanel.open reported success but panel did not open — tab fallback");
+    if (opened) {
+      markNativeSidePanelVerified();
+      return;
+    }
+    if (popupFallbackMode) return;
+    log.info("sidePanel.open reported success but panel did not open — popup fallback");
     enablePopupFallbackMode();
-    openPanelTabFromUserGesture();
+    openPanelFallbackFromUserGesture();
   });
 }
 
@@ -228,7 +290,7 @@ function openNativeSidePanelFromUserGesture(windowIdHint?: number): void {
       .catch((e: unknown) => {
         log.debug("sidePanel.open from gesture failed", e);
         enablePopupFallbackMode();
-        openPanelTabFromUserGesture();
+        openPanelFallbackFromUserGesture();
       });
     return;
   }
@@ -236,7 +298,7 @@ function openNativeSidePanelFromUserGesture(windowIdHint?: number): void {
   chrome.windows.getLastFocused({ windowTypes: ["normal"] }, (win) => {
     if (win.id === undefined) {
       enablePopupFallbackMode();
-      openPanelTabFromUserGesture();
+      openPanelFallbackFromUserGesture();
       return;
     }
     chrome.sidePanel
@@ -247,31 +309,28 @@ function openNativeSidePanelFromUserGesture(windowIdHint?: number): void {
       .catch((e: unknown) => {
         log.debug("sidePanel.open from gesture failed", e);
         enablePopupFallbackMode();
-        openPanelTabFromUserGesture();
+        openPanelFallbackFromUserGesture();
       });
   });
 }
 
-/**
- * Entry point for toolbar click and keyboard shortcut — must preserve user gesture.
- */
 export function openSidePanelFromUserGesture(windowIdHint?: number): void {
-  recordPanelOpenEvent("open_gesture", `windowHint=${windowIdHint ?? "none"} fallback=${shouldUsePopupFallback()}`);
+  recordPanelOpenEvent(
+    "open_gesture",
+    `windowHint=${windowIdHint ?? "none"} fallback=${shouldUsePopupFallback()}`,
+  );
   if (shouldUsePopupFallback()) {
-    openPanelTabFromUserGesture();
+    openPanelFallbackFromUserGesture();
     return;
   }
   openNativeSidePanelFromUserGesture(windowIdHint);
 }
 
-/**
- * Opens the panel (async). Prefer {@link openSidePanelFromUserGesture} for clicks/shortcuts.
- */
 export async function openSidePanel(windowIdHint?: number): Promise<void> {
   await hydratePopupFallbackMode();
 
   if (popupFallbackMode) {
-    openPanelTabFromUserGesture();
+    openPanelFallbackFromUserGesture();
     return;
   }
 
@@ -281,30 +340,38 @@ export async function openSidePanel(windowIdHint?: number): Promise<void> {
   }
 
   enablePopupFallbackMode();
-  log.info("Using tab fallback for panel (native sidePanel unavailable)");
-  openPanelTabFromUserGesture();
+  log.info("Using popup fallback for panel (native sidePanel unavailable)");
+  openPanelFallbackFromUserGesture();
 }
 
 export function initSidePanelMode(): void {
   if (!isNativeSidePanelApiComplete()) {
     popupFallbackMode = true;
-    log.info("Native sidePanel API incomplete — tab fallback enabled");
+    log.info("Native sidePanel API incomplete — popup fallback enabled");
   }
 
   chrome.storage.session.get(
-    [SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK, SESSION_KEY_SIDE_PANEL_FALLBACK_TAB],
+    [
+      SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK,
+      SESSION_KEY_NATIVE_SIDE_PANEL_PROVEN,
+      SESSION_KEY_SIDE_PANEL_FALLBACK_WINDOW,
+      SESSION_KEY_SIDE_PANEL_FALLBACK_TAB,
+    ],
     (result) => {
+      const proven = result[SESSION_KEY_NATIVE_SIDE_PANEL_PROVEN] === true;
       const preferFallback = result[SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK] as boolean | undefined;
-      if (preferFallback === false) {
+
+      if (proven && preferFallback === false) {
         popupFallbackMode = false;
       } else {
         popupFallbackMode = true;
       }
 
+      const windowId = result[SESSION_KEY_SIDE_PANEL_FALLBACK_WINDOW] as number | undefined;
+      if (windowId !== undefined) panelPopupWindowId = windowId;
+
       const tabId = result[SESSION_KEY_SIDE_PANEL_FALLBACK_TAB] as number | undefined;
-      if (tabId !== undefined) {
-        panelTabId = tabId;
-      }
+      if (tabId !== undefined) panelTabId = tabId;
     },
   );
 
@@ -319,6 +386,12 @@ export function initSidePanelMode(): void {
 }
 
 export function initSidePanelWindowTracking(): void {
+  chrome.windows.onRemoved.addListener((windowId) => {
+    if (panelPopupWindowId === windowId) {
+      clearRememberedPanelPopup();
+    }
+  });
+
   chrome.tabs.onRemoved.addListener((tabId) => {
     if (panelTabId === tabId) {
       clearRememberedPanelTab();

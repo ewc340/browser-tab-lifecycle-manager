@@ -26,6 +26,7 @@ import {
   openSidePanelFromUserGesture,
 } from "./side-panel-service.ts";
 import { initPanelOpenDiagnostics, recordPanelOpenEvent } from "./panel-open-debug.ts";
+import { maybePromptShortcutAssignment } from "./shortcut-service.ts";
 
 initListeners();
 initMessaging();
@@ -42,6 +43,7 @@ chrome.action.onClicked.addListener((tab) => {
 
 chrome.runtime.onInstalled.addListener(({ reason }) => {
   void enableSidePanelOnExistingWindows();
+  maybePromptShortcutAssignment();
 
   if (reason === "install") {
     chrome.tabs

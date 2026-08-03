@@ -49,6 +49,7 @@ import {
   resumeAutomation,
   runLifecycleSweep,
 } from "./lifecycle-sweep.ts";
+import { arcShortcutsPageUrl, shortcutsPageUrl } from "./shortcut-service.ts";
 import { getRecords, putRecords } from "./tab-repository.ts";
 
 const INTERACTIVE_REQUESTS = new Set<ExtensionRequest["type"]>([
@@ -157,7 +158,11 @@ async function route(request: ExtensionRequest): Promise<ResponseData[ExtensionR
     }
 
     case "OPEN_SHORTCUTS_PAGE":
-      await chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
+      chrome.tabs.create({ url: arcShortcutsPageUrl() }, () => {
+        if (chrome.runtime.lastError) {
+          void chrome.tabs.create({ url: shortcutsPageUrl() });
+        }
+      });
       return null;
 
     case "LOCK_TABS": {
