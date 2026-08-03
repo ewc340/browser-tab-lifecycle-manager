@@ -42,6 +42,57 @@ For teammates, you can also share a [GitHub Release](https://github.com/ewc340/b
 
 ---
 
+## Other Chromium browsers (Brave, Arc, Edge, etc.)
+
+This is a **Manifest V3** extension with no Chrome-only APIs beyond standard Chromium extension surfaces (`sidePanel`, `tabs`, `storage`, `alarms`). It is **not** published to a store yet, so every browser uses the same **Load unpacked** flow as Chrome.
+
+**Supported target:** Chromium desktop **121+** (same as Chrome — see `minimum_chrome_version` in the manifest).
+
+### 1. Build or obtain the extension folder
+
+Same as above:
+
+```bash
+npm run package
+```
+
+Unzip `browser-tab-lifecycle-manager-0.1.0.zip`, or use the `dist/` folder from `npm run build`. You need a directory that contains `manifest.json`.
+
+### 2. Open that browser’s extensions page
+
+| Browser | Extensions URL |
+| --- | --- |
+| Google Chrome | `chrome://extensions` |
+| Brave | `brave://extensions` |
+| Microsoft Edge | `edge://extensions` |
+| Arc | `arc://extensions` |
+| Chromium (generic) | `chrome://extensions` |
+
+Enable **Developer mode** (or the equivalent toggle).
+
+### 3. Load unpacked
+
+Click **Load unpacked** (Edge may label it **Load extension**) and select the folder with `manifest.json`.
+
+### 4. Open the side panel
+
+- Use the extension toolbar icon, or
+- Set / use the keyboard shortcut (`Alt+Shift+T` is suggested in the manifest; configure under **Extension shortcuts** on that browser’s extensions page).
+
+Arc and Brave sometimes surface the side panel differently from Chrome; if the icon does nothing, open **Extension shortcuts** and assign **Open Browser Tab Lifecycle Manager side panel**.
+
+### Expectations and caveats
+
+- **No store install yet** — unpacked load only until a Chrome Web Store (or other store) listing exists.
+- **Side panel UX** may vary slightly by browser (width, pinning, shortcut handling).
+- **Extension ID** differs per browser and per unpacked folder path; favicons and `chrome-extension://` URLs are not portable across machines or browsers.
+- **Incognito** is disabled by manifest (`incognito: "not_allowed"`).
+- **Not officially tested** on every fork; report issues if automation or the panel misbehaves on a specific browser.
+
+Brave’s shields and ad blockers do not affect this extension — it makes **no network requests**.
+
+---
+
 ## Development loop
 
 ```
