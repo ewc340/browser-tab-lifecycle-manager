@@ -88,6 +88,19 @@ export async function handleExtensionInstall(reason: chrome.runtime.InstalledDet
   runtime.lastKnownVersion = version;
 
   if (reason === "update") {
+    const {
+      isNativeSidePanelApiComplete,
+      SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK,
+      SESSION_KEY_NATIVE_SIDE_PANEL_PROVEN,
+    } = await import("./side-panel-service.ts");
+    const { setSession } = await import("./storage.ts");
+    if (isNativeSidePanelApiComplete()) {
+      await setSession({
+        [SESSION_KEY_SIDE_PANEL_PREFER_FALLBACK]: false,
+        [SESSION_KEY_NATIVE_SIDE_PANEL_PROVEN]: true,
+      });
+    }
+
     const records = await reconcileFromBrowser(now);
     const cancelled = cancelAllPendingClosures(records);
     const { putRecords } = await import("./tab-repository.ts");

@@ -12,12 +12,24 @@
 - **Alarm-driven cluster pass** every 15 minutes for ended visits not yet threaded; also runs on each reconciliation (bootstrap + backlog).
 - **Threads debug view** in the side panel (last 7 days).
 
-## Not in M5
+## Not in M5 (later milestones)
 
+- **Cross-site topic threads** (e.g. “tennis” on Reddit + Google) — opener chain, query/title graph (M6)
 - Salience filter / 90% drop
 - Opener chain and focus-alternation weighting (M6)
-- “What did I know about this?” button
-- Automatic resurfacing nudges
+- “What did I know about this?” button (M7)
+- Automatic resurfacing nudges (M8)
+- User merge/split threads (M10)
+
+## Milestone exit checklist
+
+- [x] Visit capture + durable store + alarm cluster pass
+- [x] Entity-key and session threads
+- [x] Threads debug UI (grouped by site)
+- [x] Bootstrap open tabs + refresh capture
+- [x] Side panel open/toggle on Chrome (native) and popup fallback (Arc)
+- [ ] Dogfood on branch; merge PR to `main`
+- [ ] Optional polish: thread rename, richer cross-site preview (defer to M6)
 
 ## Verification
 

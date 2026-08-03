@@ -3,6 +3,7 @@
  * otherwise in a sidebar-style popup window (Arc and other forks without sidePanel).
  */
 import * as log from "../shared/log.ts";
+import { SIDE_PANEL_TOGGLE_CLOSE, SESSION_KEY_SIDE_PANEL_VISIBLE } from "../shared/messages.ts";
 import { recordPanelOpenEvent } from "./panel-open-debug.ts";
 import { broadcast } from "./messaging.ts";
 import { taskQueue } from "./task-queue.ts";
@@ -142,25 +143,49 @@ function createPanelPopupWindow(): void {
   );
 }
 
+function closeNativeSidePanelFromUserGesture(): void {
+  recordPanelOpenEvent("toggle_close_native");
+  void setSession({ [SESSION_KEY_SIDE_PANEL_VISIBLE]: false });
+  void chrome.runtime.sendMessage(SIDE_PANEL_TOGGLE_CLOSE);
+}
+
+function isNativeSidePanelOpen(callback: (open: boolean) => void): void {
+  if (typeof chrome.runtime.getContexts !== "function") {
+    void getSession<boolean>(SESSION_KEY_SIDE_PANEL_VISIBLE, false).then(callback);
+    return;
+  }
+
+  chrome.runtime.getContexts(
+    { contextTypes: [SIDE_PANEL_CONTEXT_TYPE] },
+    (contexts) => {
+      if (chrome.runtime.lastError) {
+        void getSession<boolean>(SESSION_KEY_SIDE_PANEL_VISIBLE, false).then(callback);
+        return;
+      }
+      callback(contexts.length > 0);
+    },
+  );
+}
+
 /**
- * Sidebar-style popup window. Uses in-memory window id so create runs on the gesture chain.
+ * Sidebar-style popup window — toggle close when already open.
  */
-function openPanelPopupFromUserGesture(): void {
+function togglePanelPopupFromUserGesture(): void {
   recordPanelOpenEvent(
-    "open_popup",
+    "toggle_popup",
     `popupFallbackMode=${popupFallbackMode} panelPopupWindowId=${panelPopupWindowId ?? "none"}`,
   );
 
   if (panelPopupWindowId !== undefined) {
     chrome.windows.get(panelPopupWindowId, (existing) => {
       if (chrome.runtime.lastError || existing.id === undefined) {
-        recordPanelOpenEvent("open_popup", "cached window missing", chrome.runtime.lastError?.message);
         clearRememberedPanelPopup();
         createPanelPopupWindow();
         return;
       }
-      void chrome.windows.update(existing.id, { focused: true });
-      recordPanelOpenEvent("open_popup", `focused existing windowId=${existing.id}`);
+      recordPanelOpenEvent("toggle_close_popup", `windowId=${existing.id}`);
+      void chrome.windows.remove(existing.id);
+      clearRememberedPanelPopup();
     });
     return;
   }
@@ -198,7 +223,7 @@ function openPanelTabFromUserGesture(): void {
 }
 
 function openPanelFallbackFromUserGesture(): void {
-  openPanelPopupFromUserGesture();
+  togglePanelPopupFromUserGesture();
 }
 
 function probeNativeSidePanelSupport(): void {
@@ -283,6 +308,7 @@ function openNativeSidePanelFromUserGesture(windowIdHint?: number): void {
     chrome.sidePanel
       .open({ windowId: windowIdHint })
       .then(() => {
+        void setSession({ [SESSION_KEY_SIDE_PANEL_VISIBLE]: true });
         markNativeSidePanelVerified();
         scheduleNativeOpenVerification();
       })
@@ -303,6 +329,7 @@ function openNativeSidePanelFromUserGesture(windowIdHint?: number): void {
     chrome.sidePanel
       .open({ windowId: win.id })
       .then(() => {
+        void setSession({ [SESSION_KEY_SIDE_PANEL_VISIBLE]: true });
         markNativeSidePanelVerified();
         scheduleNativeOpenVerification();
       })
@@ -316,15 +343,23 @@ function openNativeSidePanelFromUserGesture(windowIdHint?: number): void {
 
 export function openSidePanelFromUserGesture(windowIdHint?: number): void {
   recordPanelOpenEvent(
-    "open_gesture",
+    "toggle_gesture",
     `windowHint=${windowIdHint ?? "none"} fallback=${shouldUsePopupFallback()}`,
   );
   scheduleReconcileForPanel();
+
   if (shouldUsePopupFallback()) {
-    openPanelFallbackFromUserGesture();
+    togglePanelPopupFromUserGesture();
     return;
   }
-  openNativeSidePanelFromUserGesture(windowIdHint);
+
+  isNativeSidePanelOpen((open) => {
+    if (open) {
+      closeNativeSidePanelFromUserGesture();
+      return;
+    }
+    openNativeSidePanelFromUserGesture(windowIdHint);
+  });
 }
 
 export async function openSidePanel(windowIdHint?: number): Promise<void> {

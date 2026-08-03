@@ -23,6 +23,9 @@ export const PROTOCOL_VERSION = 1;
 /** Internal signal: side panel should close (used by keyboard toggle). */
 export const SIDE_PANEL_TOGGLE_CLOSE = "SIDE_PANEL_TOGGLE_CLOSE" as const;
 
+/** Session flag — side panel document is mounted (toggle fallback when getContexts unavailable). */
+export const SESSION_KEY_SIDE_PANEL_VISIBLE = "sidePanelVisible:v1";
+
 export type HostRule = "NEVER_CLOSE" | "NEVER_SLEEP" | "NONE";
 
 export type ExtensionRequest =
