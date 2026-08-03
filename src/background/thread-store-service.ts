@@ -89,6 +89,7 @@ export async function listVisitsForThreads(threadIds: readonly string[]): Promis
 export async function getThreadsSnapshot(sinceMs: number): Promise<{
   threads: ThreadRecord[];
   visits: VisitRecord[];
+  activeVisits: VisitRecord[];
   orphanVisitCount: number;
 }> {
   const [allVisits, threads] = await Promise.all([loadVisits(), loadThreads()]);
@@ -104,11 +105,15 @@ export async function getThreadsSnapshot(sinceMs: number): Promise<{
       threadIds.has(visit.threadId),
   );
 
+  const activeVisits = Object.values(allVisits)
+    .filter((visit) => visit.lastSeenAt >= sinceMs && visit.endedAt === undefined)
+    .sort((a, b) => b.lastSeenAt - a.lastSeenAt);
+
   const orphanVisitCount = Object.values(allVisits).filter(
     (visit) => visit.lastSeenAt >= sinceMs && visit.threadId === undefined && visit.endedAt !== undefined,
   ).length;
 
-  return { threads: threadList, visits, orphanVisitCount };
+  return { threads: threadList, visits, activeVisits, orphanVisitCount };
 }
 
 export async function runThreadClusterPass(now: number): Promise<{ threads: number; visits: number }> {

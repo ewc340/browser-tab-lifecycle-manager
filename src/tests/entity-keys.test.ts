@@ -20,6 +20,19 @@ describe("extractEntityKeys", () => {
     expect(keys).toContain("gdoc:abc123XYZ");
   });
 
+  it("extracts reddit post id", () => {
+    const keys = extractEntityKeys(
+      "https://www.reddit.com/r/tennis/comments/abc123xyz/tennis_robot_thread/",
+      "Tennis robot",
+    );
+    expect(keys).toContain("reddit:abc123xyz");
+  });
+
+  it("extracts normalized search query from Google", () => {
+    const keys = extractEntityKeys("https://www.google.com/search?q=tennis+robot", "Search");
+    expect(keys).toContain("search:tennis robot");
+  });
+
   it("returns sorted unique keys", () => {
     const keys = extractEntityKeys(
       "https://jira.example.com/browse/PROJ-99",

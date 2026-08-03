@@ -208,6 +208,31 @@ export async function resolveCloseReason(tabId: number): Promise<VisitCloseReaso
   return "USER";
 }
 
+export async function flushActiveVisitDwell(now: number): Promise<void> {
+  const state = await loadCaptureState();
+
+  if (state.lastActiveTabId !== undefined) {
+    const active = state.activeByTab[String(state.lastActiveTabId)];
+    if (active !== undefined) {
+      creditDwell(active, now);
+    }
+  }
+
+  for (const active of Object.values(state.activeByTab)) {
+    await persistVisit(active.visit);
+  }
+
+  await saveCaptureState(state);
+}
+
+/**
+ * Bootstrap open tabs and flush in-memory dwell — used when the panel refreshes threads.
+ */
+export async function refreshVisitCapture(now: number): Promise<number> {
+  await flushActiveVisitDwell(now);
+  return bootstrapVisitsFromOpenTabs(now);
+}
+
 export async function bootstrapVisitsFromOpenTabs(now: number): Promise<number> {
   const { queryAllBrowserTabs } = await import("./tab-repository.ts");
   const tabs = await queryAllBrowserTabs();

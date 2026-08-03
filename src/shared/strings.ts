@@ -114,9 +114,12 @@ export const STRINGS = {
   },
   threadsView: {
     hint:
-      "Threads group visits by entity keys (e.g. PROJ-412) or same-window browsing bursts. Debug view — last 7 days. No automatic nudges yet.",
+      "Threads group ended visits by entity keys (e.g. PROJ-412, reddit post id, search query) or same-window bursts. Open tabs appear below until closed. Debug view — last 7 days.",
     loading: "Loading threads…",
-    empty: "No threads yet. Browse with the extension enabled; visits cluster when tabs close or navigate.",
+    empty: "No threads yet. Open tabs are listed while still open; threads form when tabs close or navigate.",
+    openTabsHeading: (count: number) =>
+      `Open tab visits (${count})`,
+    openTabBadge: "open",
     orphans: (count: number) =>
       `${count} ended visit${count === 1 ? "" : "s"} could not be clustered (e.g. privileged URLs with no host).`,
     refresh: "Refresh threads",

@@ -687,6 +687,11 @@ body {
 
 .activity-view,
 .recovery-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
   padding: var(--space-3) var(--space-4) var(--space-5);
 }
 
@@ -697,6 +702,7 @@ body {
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--space-3);
+  flex-shrink: 0;
 }
 
 .activity-view__filters {
@@ -862,6 +868,9 @@ body {
 }
 
 .recovery-view__list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
   list-style: none;
   margin: 0 0 var(--space-3);
   padding: 0;
@@ -884,6 +893,13 @@ body {
 
 .activity-view__more {
   margin-top: var(--space-3);
+  flex-shrink: 0;
+}
+
+.activity-view__list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 .tab-row__skip {
@@ -1443,6 +1459,29 @@ kbd {
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+.threads-view__open {
+  margin-bottom: var(--space-4);
+}
+
+.threads-view__open-heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.thread-visit__badge {
+  display: inline-block;
+  margin-right: var(--space-1);
+  padding: 1px var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--badge-idle-bg);
+  color: var(--badge-idle-fg);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  text-transform: uppercase;
 }
 
 .thread-card {

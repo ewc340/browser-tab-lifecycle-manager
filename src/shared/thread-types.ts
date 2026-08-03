@@ -61,6 +61,8 @@ export interface ThreadIndexEntry {
 export interface ThreadsSnapshot {
   threads: ThreadRecord[];
   visits: VisitRecord[];
+  /** Open-tab visits still in progress (not yet threaded). */
+  activeVisits: VisitRecord[];
   /** Visits not assigned to any thread yet. */
   orphanVisitCount: number;
   capturedThrough: number;

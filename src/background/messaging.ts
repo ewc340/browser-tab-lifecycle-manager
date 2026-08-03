@@ -121,6 +121,12 @@ async function route(request: ExtensionRequest): Promise<ResponseData[ExtensionR
 
     case "GET_THREADS": {
       const sinceMs = request.sinceMs ?? Date.now() - 7 * 24 * 60 * 60 * 1000;
+      if (request.refreshCapture === true) {
+        const { refreshVisitCapture } = await import("./visit-capture-service.ts");
+        const { runThreadClusterPass } = await import("./thread-store-service.ts");
+        await refreshVisitCapture(now);
+        await runThreadClusterPass(now);
+      }
       const snapshot = await getThreadsSnapshot(sinceMs);
       return {
         ...snapshot,

@@ -16,6 +16,34 @@ const ALLOWED_QUERY_KEYS = new Set([
   "ticket",
 ]);
 
+function normalizeSearchQuery(raw: string): string | undefined {
+  const trimmed = raw.trim().toLowerCase().replace(/\s+/g, " ");
+  if (trimmed.length < 2 || trimmed.length > 80) return undefined;
+  return trimmed;
+}
+
+function extractSearchQueryKey(parsed: URL, keys: Set<string>): void {
+  const host = parsed.hostname.toLowerCase();
+  const isSearchHost =
+    host === "www.google.com" ||
+    host === "google.com" ||
+    host.endsWith(".google.com") ||
+    host === "www.bing.com" ||
+    host === "bing.com" ||
+    host === "duckduckgo.com" ||
+    host === "www.duckduckgo.com";
+
+  if (!isSearchHost) return;
+
+  const q = parsed.searchParams.get("q") ?? parsed.searchParams.get("query");
+  if (q === null) return;
+
+  const normalized = normalizeSearchQuery(q);
+  if (normalized !== undefined) {
+    keys.add(`search:${normalized}`);
+  }
+}
+
 function addIssueKeysFromText(text: string, keys: Set<string>): void {
   for (const match of text.matchAll(ISSUE_KEY_PATTERN)) {
     const key = match[0];
@@ -57,6 +85,17 @@ function extractFromUrl(parsed: URL, keys: Set<string>): void {
   if (host.includes("notion.so") && notionMatch !== null && notionMatch[1] !== undefined) {
     keys.add(`notion:${notionMatch[1].slice(0, 16)}`);
   }
+
+  const redditPostMatch = parsed.pathname.match(/\/comments\/([a-z0-9]+)/i);
+  if (
+    (host === "reddit.com" || host === "www.reddit.com" || host.endsWith(".reddit.com")) &&
+    redditPostMatch !== null &&
+    redditPostMatch[1] !== undefined
+  ) {
+    keys.add(`reddit:${redditPostMatch[1]}`);
+  }
+
+  extractSearchQueryKey(parsed, keys);
 
   for (const [param, value] of parsed.searchParams.entries()) {
     if (!ALLOWED_QUERY_KEYS.has(param.toLowerCase())) continue;
