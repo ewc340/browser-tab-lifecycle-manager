@@ -16,6 +16,8 @@ export const SESSION_KEY_CLOSING_TAB_IDS = "closingTabIds";
 export const SESSION_KEY_SWEEP_LEASE = "sweepLease";
 export const SESSION_KEY_SWEEP_COUNTERS = "sweepCounters";
 export const SESSION_KEY_MIGRATION_LOCK = "migrationLock";
+export const SESSION_KEY_LAST_RECONCILE_AT = "lastReconcileAt";
+export const SESSION_KEY_PANEL_APP_STATE = "panelAppState:v1";
 
 // ── Local storage keys ────────────────────────────────────────────────────────
 // Durable across restarts. Keys are versioned so schema migrations can be
@@ -109,12 +111,13 @@ export async function getBytesInUse(): Promise<number> {
 }
 
 /** Evicts oldest activity buckets and recovery records under quota pressure. */
-export async function trimHistory(_options?: { aggressive?: boolean }): Promise<void> {
+export async function trimHistory(options?: { aggressive?: boolean }): Promise<void> {
   const { enforceActivityRetention } = await import("./activity-service.ts");
   const { enforceRecoveryRetention } = await import("./recovery-service.ts");
   const { loadSettings } = await import("./settings-service.ts");
   const settings = await loadSettings();
-  const maxEvents = Math.max(50, Math.floor(settings.maximumActivityEvents / 2));
+  const divisor = options?.aggressive === true ? 4 : 2;
+  const maxEvents = Math.max(50, Math.floor(settings.maximumActivityEvents / divisor));
   await enforceActivityRetention(maxEvents, settings.activityRetentionDays);
   await enforceRecoveryRetention();
 }

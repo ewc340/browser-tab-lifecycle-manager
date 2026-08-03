@@ -21,6 +21,7 @@ import {
 } from "./tab-repository.ts";
 import { refreshLockFromTab } from "./lock-service.ts";
 import { recordTabActivation } from "./activity-ledger.ts";
+import type { AppState } from "../shared/types.ts";
 
 // ── Debounced broadcast ───────────────────────────────────────────────────────
 
@@ -32,6 +33,28 @@ function scheduleBroadcast(): void {
     broadcastTimer = undefined;
     broadcast({ type: "APP_STATE_CHANGED" });
   }, 150);
+}
+
+let focusReconcileTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Arc multi-window: reload inventory when the user focuses another browser window. */
+function scheduleReconcileWhenPanelOpen(): void {
+  if (focusReconcileTimer !== undefined) clearTimeout(focusReconcileTimer);
+  focusReconcileTimer = setTimeout(() => {
+    focusReconcileTimer = undefined;
+    taskQueue
+      .push(async () => {
+        const { getSession, SESSION_KEY_PANEL_APP_STATE } = await import("./storage.ts");
+        const panelSnapshot = await getSession<AppState | undefined>(
+          SESSION_KEY_PANEL_APP_STATE,
+          undefined,
+        );
+        if (panelSnapshot === undefined) return;
+        await reconcileFromBrowser(Date.now());
+        scheduleBroadcast();
+      })
+      .catch((e: unknown) => log.error("focus reconcile failed", e));
+  }, 500);
 }
 
 // ── Window type cache ─────────────────────────────────────────────────────────
@@ -237,6 +260,8 @@ export function initListeners(): void {
     // without this handler a tab being read in another window would age toward
     // automatic closure despite being actively used.
     if (windowId === chrome.windows.WINDOW_ID_NONE) return;
+
+    scheduleReconcileWhenPanelOpen();
 
     taskQueue
       .push(async () => {

@@ -10,12 +10,17 @@ import type { RequestType, ResponseData } from "../../shared/messages.ts";
 import type { RequestOf } from "../../shared/messages.ts";
 import { PROTOCOL_VERSION, type ExtensionResponse, type RequestEnvelope } from "../../shared/messages.ts";
 import { ExtensionError } from "../../shared/errors.ts";
+import { PANEL_MESSAGE_TIMEOUT_MS, withTimeout } from "../../shared/messaging-timeout.ts";
 
 export function useMessaging() {
   const send = useCallback(
     async <T extends RequestType>(request: RequestOf<T>): Promise<ResponseData[T]> => {
       const envelope: RequestEnvelope = { v: PROTOCOL_VERSION, request };
-      const rawResponse: unknown = await chrome.runtime.sendMessage(envelope);
+      const rawResponse: unknown = await withTimeout(
+        chrome.runtime.sendMessage(envelope),
+        PANEL_MESSAGE_TIMEOUT_MS,
+        request.type,
+      );
       const response = rawResponse as ExtensionResponse<ResponseData[T]>;
 
       if (!response.ok) {

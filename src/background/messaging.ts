@@ -12,7 +12,7 @@ import { ExtensionError, toExtensionError } from "../shared/errors.ts";
 import { reanchorPendingClose } from "../shared/lifecycle.ts";
 import * as log from "../shared/log.ts";
 import { taskQueue } from "./task-queue.ts";
-import { buildAppState } from "./app-state.ts";
+import { getAppState, invalidateAppStateCache } from "./app-state.ts";
 import { updateSettings, loadSettings } from "./settings-service.ts";
 import { lockTabs, unlockTabs } from "./lock-service.ts";
 import {
@@ -49,7 +49,17 @@ import {
   resumeAutomation,
   runLifecycleSweep,
 } from "./lifecycle-sweep.ts";
+import { arcShortcutsPageUrl, shortcutsPageUrl } from "./shortcut-service.ts";
 import { getRecords, putRecords } from "./tab-repository.ts";
+
+const INTERACTIVE_REQUESTS = new Set<ExtensionRequest["type"]>([
+  "GET_APP_STATE",
+  "GET_ACTIVITY",
+  "GET_RECOVERY",
+  "GET_DIAGNOSTICS",
+  "GET_USAGE_SUMMARY",
+  "EXPORT_DATA",
+]);
 
 export function initMessaging(): void {
   chrome.runtime.onMessage.addListener((rawMsg, _sender, sendResponse) => {
@@ -68,18 +78,23 @@ export function initMessaging(): void {
       return false;
     }
 
-    taskQueue
-      .push(async () => {
-        const data = await route(rawMsg.request);
-        sendResponse({ ok: true, data } satisfies ExtensionResponse);
-      })
-      .catch((e: unknown) => {
-        const err = toExtensionError(e);
-        sendResponse({
-          ok: false,
-          error: err.toSerialized(import.meta.env.DEV),
-        } satisfies ExtensionResponse);
-      });
+    const enqueue = INTERACTIVE_REQUESTS.has(rawMsg.request.type)
+      ? taskQueue.pushInteractive.bind(taskQueue)
+      : taskQueue.push.bind(taskQueue);
+
+    enqueue(async () => {
+      if (!INTERACTIVE_REQUESTS.has(rawMsg.request.type)) {
+        invalidateAppStateCache();
+      }
+      const data = await route(rawMsg.request);
+      sendResponse({ ok: true, data } satisfies ExtensionResponse);
+    }).catch((e: unknown) => {
+      const err = toExtensionError(e);
+      sendResponse({
+        ok: false,
+        error: err.toSerialized(import.meta.env.DEV),
+      } satisfies ExtensionResponse);
+    });
 
     return true;
   });
@@ -89,7 +104,10 @@ async function route(request: ExtensionRequest): Promise<ResponseData[ExtensionR
   const now = Date.now();
   switch (request.type) {
     case "GET_APP_STATE":
-      return buildAppState(now);
+      return getAppState({
+        preferCachedSnapshot: request.preferCache ?? false,
+        force: request.forceRefresh ?? false,
+      });
 
     case "GET_ACTIVITY": {
       const page = await getActivityPage(request.cursor, request.limit ?? 50);
@@ -140,7 +158,11 @@ async function route(request: ExtensionRequest): Promise<ResponseData[ExtensionR
     }
 
     case "OPEN_SHORTCUTS_PAGE":
-      await chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
+      chrome.tabs.create({ url: arcShortcutsPageUrl() }, () => {
+        if (chrome.runtime.lastError) {
+          void chrome.tabs.create({ url: shortcutsPageUrl() });
+        }
+      });
       return null;
 
     case "LOCK_TABS": {

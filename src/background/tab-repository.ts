@@ -11,7 +11,7 @@ import type { ManagedTabRecord } from "../shared/types.ts";
 import { classifyManageability } from "../shared/eligibility.ts";
 import { normalizeUrl } from "../shared/url-normalizer.ts";
 import { sanitizeTitle, sanitizeUrl } from "../shared/sanitize.ts";
-import { getSession, setSession, SESSION_KEY_TAB_RECORDS } from "./storage.ts";
+import { getSession, setSession, SESSION_KEY_TAB_RECORDS, SESSION_KEY_LAST_RECONCILE_AT } from "./storage.ts";
 import * as log from "../shared/log.ts";
 
 // ── Serialization ─────────────────────────────────────────────────────────────
@@ -129,6 +129,51 @@ export function recordFromTab(
 // ── Reconciliation ────────────────────────────────────────────────────────────
 
 /**
+ * Merges every strategy Chromium exposes. Arc and other forks sometimes omit tabs
+ * from a bare `tabs.query({})` but include them on per-window or populated-window queries.
+ */
+export async function queryAllBrowserTabs(): Promise<chrome.tabs.Tab[]> {
+  const merged = new Map<number, chrome.tabs.Tab>();
+
+  const add = (tab: chrome.tabs.Tab): void => {
+    if (tab.id !== undefined) merged.set(tab.id, tab);
+  };
+
+  try {
+    for (const tab of await chrome.tabs.query({})) add(tab);
+  } catch (e) {
+    log.error("tabs.query({}) failed", e);
+  }
+
+  let windows: chrome.windows.Window[] = [];
+  try {
+    windows = await chrome.windows.getAll({ populate: true });
+  } catch (e) {
+    log.error("windows.getAll({ populate: true }) failed", e);
+    try {
+      windows = await chrome.windows.getAll();
+    } catch (inner) {
+      log.error("windows.getAll() failed", inner);
+    }
+  }
+
+  for (const win of windows) {
+    if (win.tabs) {
+      for (const tab of win.tabs) add(tab);
+    }
+    if (win.id !== undefined) {
+      try {
+        for (const tab of await chrome.tabs.query({ windowId: win.id })) add(tab);
+      } catch {
+        // Window may have closed between getAll and query.
+      }
+    }
+  }
+
+  return [...merged.values()];
+}
+
+/**
  * The authoritative source of truth. Queries Chrome for all tabs and windows,
  * merges with stored records (carrying forward accumulated state), drops
  * tombstones for tabs that no longer exist, and persists the result.
@@ -138,10 +183,10 @@ export function recordFromTab(
 export async function reconcileFromBrowser(
   now: number,
 ): Promise<Map<number, ManagedTabRecord>> {
-  const [tabs, windows] = await Promise.all([
-    chrome.tabs.query({}),
+  const tabs = await queryAllBrowserTabs();
+  const windows = await chrome.windows.getAll({ populate: true }).catch(async () =>
     chrome.windows.getAll(),
-  ]);
+  );
 
   const windowTypeMap = new Map<number, NonNullable<chrome.windows.Window["type"]> | "unknown">();
   for (const win of windows) {
@@ -160,8 +205,11 @@ export async function reconcileFromBrowser(
     fresh.set(tab.id, recordFromTab(tab, windowType, prior, now));
   }
 
-  log.debug("reconciled", fresh.size, "tab records");
+  log.debug("reconciled", fresh.size, "tab records from", tabs.length, "browser tabs");
   await persistRecords(fresh);
+  await setSession({ [SESSION_KEY_LAST_RECONCILE_AT]: now });
+  const { invalidateAppStateCache } = await import("./app-state-cache.ts");
+  invalidateAppStateCache();
   return fresh;
 }
 
@@ -208,6 +256,8 @@ export async function patchRecord(
  */
 export async function markRemoved(tabId: number, now: number): Promise<void> {
   await patchRecord(tabId, { removedAt: now, active: false });
+  const { invalidateAppStateCache } = await import("./app-state-cache.ts");
+  invalidateAppStateCache();
 }
 
 /**

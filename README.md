@@ -16,6 +16,112 @@ Chrome 121 or later is required. The floor comes from `tabs.Tab.lastAccessed`, w
 
 ---
 
+## Install on another computer
+
+To use the extension on a different machine without cloning the repo:
+
+1. **Build the zip** (on any machine with Node.js 22+):
+   ```bash
+   npm install
+   npm run package
+   ```
+   This creates `browser-tab-lifecycle-manager-0.1.0.zip` in the project root (version matches `package.json`).
+
+2. **Transfer the zip** to the other device (USB drive, cloud storage, GitHub Releases, or the `dist-zip` artifact from CI).
+
+3. **Install in Chrome** on the target machine:
+   - Unzip the archive to a folder (e.g. `browser-tab-lifecycle-manager/`).
+   - Open `chrome://extensions`, enable **Developer mode**.
+   - Click **Load unpacked** and select the unzipped folder (the one containing `manifest.json`).
+
+   Chrome does not install `.zip` files directly for unpacked extensions — you must extract first.
+
+4. **Pin the extension** and use **Alt+Shift+T** (or the toolbar icon) to open the side panel.
+
+For teammates, you can also share a [GitHub Release](https://github.com/ewc340/browser-tab-lifecycle-manager/releases) asset or download the CI artifact from a green build on `main`.
+
+---
+
+## Other Chromium browsers (Brave, Arc, Edge, etc.)
+
+This is a **Manifest V3** extension with no Chrome-only APIs beyond standard Chromium extension surfaces (`sidePanel`, `tabs`, `storage`, `alarms`). It is **not** published to a store yet, so every browser uses the same **Load unpacked** flow as Chrome.
+
+**Supported target:** Chromium desktop **121+** (same as Chrome — see `minimum_chrome_version` in the manifest).
+
+### 1. Build or obtain the extension folder
+
+Same as above:
+
+```bash
+npm run package
+```
+
+Unzip `browser-tab-lifecycle-manager-0.1.0.zip`, or use the `dist/` folder from `npm run build`. You need a directory that contains `manifest.json`.
+
+### 2. Open that browser’s extensions page
+
+| Browser | Extensions URL |
+| --- | --- |
+| Google Chrome | `chrome://extensions` |
+| Brave | `brave://extensions` |
+| Microsoft Edge | `edge://extensions` |
+| Arc | `arc://extensions` |
+| Chromium (generic) | `chrome://extensions` |
+
+Enable **Developer mode** (or the equivalent toggle).
+
+### 3. Load unpacked
+
+Click **Load unpacked** (Edge may label it **Load extension**) and select the folder with `manifest.json`.
+
+### 4. Open the lifecycle manager
+
+- Use the extension toolbar icon, or
+- Set / use the keyboard shortcut (`Alt+Shift+T` is suggested in the manifest; configure under **Extension shortcuts** on that browser’s extensions page).
+
+**Arc:** Arc does not support Chrome’s embedded side panel API. The manager opens in a **sidebar-style popup window** docked beside your main browser window (not a full tab). True in-browser side panels on Arc would require Arc to ship `chrome.sidePanel` support — community workarounds use the same popup approach.
+
+If the shortcut does nothing:
+
+1. Open `arc://extensions/shortcuts`
+2. Find **Browser Tab Lifecycle Manager**
+3. Assign **Open Browser Tab Lifecycle Manager side panel** to `Alt+Shift+T` (Arc does not always apply manifest shortcuts automatically)
+4. If that entry is blank, assign **Open Browser Tab Lifecycle Manager** (`_execute_action`) instead — both should open the manager
+
+### Debugging panel open on Arc
+
+Production builds do not log to the console. Use the **panel open debug page** instead:
+
+1. Open `arc://extensions` and copy the extension **ID** (32-character string).
+2. In Arc’s address bar, open:
+   `chrome-extension://YOUR_EXTENSION_ID/panel-open-debug.html`
+   (Arc may also accept the same `chrome-extension://` scheme — try it first.)
+3. Click **Refresh report**, then try **Test: open manager tab** and **Test: simulate shortcut handler**.
+4. Copy the full JSON report and share it in a GitHub issue or with whoever is debugging.
+
+The report includes registered keyboard shortcuts, session fallback flags, and a chronological event log (`panelOpenDebug:v1`).
+
+**Also helpful when reporting:**
+
+| What | How |
+| --- | --- |
+| Arc version | Arc menu → **About Arc** |
+| Extension version | `package.json` / `arc://extensions` version column |
+| Shortcut assignment | `arc://extensions/shortcuts` — note whether **Open … side panel** is blank or assigned |
+| Toolbar icon | Does clicking the extension icon do anything? |
+| Service worker errors | `arc://extensions` → extension → **Service worker** → **Inspect** → Console tab |
+| Manual manager URL | Does `chrome-extension://YOUR_ID/sidepanel.html` open the UI in a tab? |
+
+- **No store install yet** — unpacked load only until a Chrome Web Store (or other store) listing exists.
+- **Side panel UX** may vary slightly by browser (width, pinning, shortcut handling).
+- **Extension ID** differs per browser and per unpacked folder path; favicons and `chrome-extension://` URLs are not portable across machines or browsers.
+- **Incognito** is disabled by manifest (`incognito: "not_allowed"`).
+- **Not officially tested** on every fork; report issues if automation or the panel misbehaves on a specific browser.
+
+Brave’s shields and ad blockers do not affect this extension — it makes **no network requests**.
+
+---
+
 ## Development loop
 
 ```
@@ -41,6 +147,7 @@ There is no hot-module replacement. The MV3 Content Security Policy forbids remo
 | `npm run smoke` | Panel smoke test (CDP + Xvfb) |
 | `npm run smoke:lifecycle` | Automated lifecycle sweep smoke test |
 | `npm run smoke:recovery` | Close → recovery → restore smoke test |
+| `npm run e2e` | Playwright E2E against the built extension (requires `npm run build`) |
 | `npm run package` | Full build + verify + zip for distribution |
 
 ---
@@ -59,6 +166,10 @@ scripts/
   lifecycle-smoke-test.mjs Lifecycle automation smoke test
   recovery-smoke-test.mjs  Recovery restore smoke test
   audit-bundle.mjs         Bundle safety auditor
+e2e/
+  panel.spec.ts            Playwright: inventory + navigation
+  tab-actions.spec.ts      Playwright: sleep, lock, close via UI
+  recovery.spec.ts         Playwright: auto-close + restore cycle
 docs/
   PRD.md                   Product requirements document
   IMPLEMENTATION_PLAN.md   Milestone-by-milestone plan

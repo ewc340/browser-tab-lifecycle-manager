@@ -8,7 +8,13 @@
  * Every message carries the protocol version: a panel document can outlive a service
  * worker update, and a stale panel must fail loudly rather than behave oddly.
  */
-import type { ActivityEvent, AppState, ExtensionSettings, RecoveryRecord } from "./types.ts";
+import type {
+  ActivityEvent,
+  AppState,
+  ExtensionSettings,
+  RecoveryRecord,
+  RuntimeState,
+} from "./types.ts";
 import type { SerializedError } from "./errors.ts";
 
 export const PROTOCOL_VERSION = 1;
@@ -19,7 +25,7 @@ export const SIDE_PANEL_TOGGLE_CLOSE = "SIDE_PANEL_TOGGLE_CLOSE" as const;
 export type HostRule = "NEVER_CLOSE" | "NEVER_SLEEP" | "NONE";
 
 export type ExtensionRequest =
-  | { type: "GET_APP_STATE" }
+  | { type: "GET_APP_STATE"; preferCache?: boolean; forceRefresh?: boolean }
   | { type: "GET_ACTIVITY"; cursor?: string; limit?: number }
   | { type: "GET_RECOVERY" }
   | { type: "ACTIVATE_TAB"; tabId: number }
@@ -81,7 +87,7 @@ export interface ResponseData {
   IMPORT_SETTINGS: { settings: ExtensionSettings };
   GET_DIAGNOSTICS: { text: string };
   GET_USAGE_SUMMARY: { text: string };
-  DISMISS_WHATS_NEW: { runtime: import("./types.ts").RuntimeState };
+  DISMISS_WHATS_NEW: { runtime: RuntimeState };
   OPEN_SHORTCUTS_PAGE: null;
 }
 

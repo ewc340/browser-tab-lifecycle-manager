@@ -61,13 +61,12 @@ export const manifest = {
 
   commands: {
     _execute_action: {
-      // Toolbar click only — keyboard shortcut is on open-side-panel so we can call
-      // chrome.sidePanel.open() directly (more reliable than _execute_action on Mac).
+      suggested_key: { default: "Alt+Shift+T", mac: "Alt+Shift+T" },
       description: `Open ${PRODUCT_NAME}`,
     },
     "open-side-panel": {
-      suggested_key: { default: "Alt+Shift+T", mac: "Alt+Shift+T" },
-      description: `Open ${PRODUCT_NAME} side panel`,
+      description: `Open ${PRODUCT_NAME} side panel (programmatic / alternate shortcut)`,
+      global: true,
     },
     "toggle-tab-keep": {
       description: "Keep the current tab (protect it from automatic closing)",

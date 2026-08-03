@@ -79,11 +79,21 @@ export function Onboarding() {
         </section>
 
         <section className="onboarding__section">
-          <h2>Side panel</h2>
+          <h2>Open the manager</h2>
           <p>
-            Click the extension icon in the toolbar to open the control center. Keyboard shortcut:{" "}
+            Click the extension icon in the toolbar, or use{" "}
             <kbd>Option</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> on Mac (
             <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> on Windows/Linux).
+          </p>
+          <p>
+            <strong>Arc and some other browsers do not apply the suggested shortcut automatically.</strong>
+            Open <code>arc://extensions/shortcuts</code> (or your browser&apos;s extension shortcuts
+            page) and assign <strong>Open Browser Tab Lifecycle Manager</strong> to{" "}
+            <kbd>Alt+Shift+T</kbd>. Until you do, the keyboard shortcut will not work.
+          </p>
+          <p>
+            On Arc, the manager opens in a sidebar-style popup window instead of Chrome&apos;s
+            embedded side panel.
           </p>
         </section>
 

@@ -16,7 +16,7 @@ interface TabRowProps {
   bulkMode?: boolean;
   selected?: boolean;
   onActivate: (tabId: number) => void;
-  onToggleSelect?: (tabId: number) => void;
+  onToggleSelect?: (tabId: number, shiftKey?: boolean) => void;
   onLock?: (tabId: number) => void;
   onUnlock?: (tabId: number) => void;
   onSleep?: (tabId: number) => void;
@@ -82,6 +82,14 @@ function SleepIcon() {
   );
 }
 
+function LockIcon() {
+  return (
+    <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M4.5 7V5a3.5 3.5 0 1 1 7 0v2h.5A1.5 1.5 0 0 1 13 8.5v5A1.5 1.5 0 0 1 11.5 15h-7A1.5 1.5 0 0 1 3 13.5v-5A1.5 1.5 0 0 1 4.5 7zm2-2a1.5 1.5 0 1 0 3 0v2h-3V5z" />
+    </svg>
+  );
+}
+
 function WakeIcon() {
   return (
     <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
@@ -109,6 +117,7 @@ export function TabRow({
 }: TabRowProps) {
   const [faviconError, setFaviconError] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [closeTarget, setCloseTarget] = useState(false);
   const menuId = useId();
   const menuRef = useRef<HTMLDivElement>(null);
   const host = displayHostForTab(tab.url, extensionId);
@@ -138,13 +147,27 @@ export function TabRow({
   };
 
   return (
-    <div className={`tab-row${selected ? " tab-row--selected" : ""}`} role="listitem">
+    <div
+      className={[
+        "tab-row",
+        selected ? "tab-row--selected" : "",
+        closeTarget ? "tab-row--close-target" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      role="listitem"
+    >
       {bulkMode && (
         <label className="tab-row__select">
           <input
             type="checkbox"
+            className="tab-row__checkbox"
             checked={selected}
-            onChange={() => onToggleSelect?.(tab.tabId)}
+            readOnly
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleSelect?.(tab.tabId, event.shiftKey);
+            }}
             aria-label={`Select ${tab.title}`}
           />
         </label>
@@ -153,8 +176,16 @@ export function TabRow({
       <button
         type="button"
         className="tab-row__main"
-        aria-label={`${tab.title} — ${host}`}
-        onClick={() => onActivate(tab.tabId)}
+        aria-label={
+          bulkMode ? `Select ${tab.title} — ${host}` : `${tab.title} — ${host}`
+        }
+        onClick={(event) => {
+          if (bulkMode) {
+            onToggleSelect?.(tab.tabId, event.shiftKey);
+            return;
+          }
+          onActivate(tab.tabId);
+        }}
       >
         <div className="tab-row__favicon" aria-hidden="true">
           {faviconError ? (
@@ -170,7 +201,11 @@ export function TabRow({
           )}
         </div>
 
-        <div className="tab-row__content">
+        <div
+          className="tab-row__content"
+          title={tab.title}
+          data-tooltip={tab.title}
+        >
           <span className="tab-row__title">{tab.title}</span>
           <span className="tab-row__host">{host}</span>
         </div>
@@ -178,29 +213,63 @@ export function TabRow({
         <div className="tab-row__meta">
           <TabStateBadge state={tab.displayState} />
           {tab.skipReason !== undefined && tab.skipReason.length > 0 && (
-            <span className="tab-row__skip" title={tab.skipReason}>
+            <span
+              className="tab-row__skip"
+              title={tab.skipReason}
+              data-tooltip={tab.skipReason}
+            >
               {tab.skipReason}
             </span>
           )}
-          <span className="tab-row__age" title={`Last active ${inactiveDuration} ago`}>
+          <span
+            className="tab-row__age"
+            title={STRINGS.tooltips.inactive(inactiveDuration)}
+            data-tooltip={STRINGS.tooltips.inactive(inactiveDuration)}
+          >
             {inactiveDuration}
           </span>
         </div>
 
         <div className="tab-row__flags">
           {tab.pinned && (
-            <span className="tab-row__flag tab-row__flag--pinned">
+            <span
+              className="tab-row__flag tab-row__flag--pinned"
+              title={STRINGS.tooltips.pinned}
+              data-tooltip={STRINGS.tooltips.pinned}
+            >
               <PinIcon />
               <span className="sr-only">Pinned</span>
             </span>
           )}
           {tab.audible && (
-            <span className="tab-row__flag tab-row__flag--audible">
+            <span
+              className="tab-row__flag tab-row__flag--audible"
+              title={STRINGS.tooltips.audible}
+              data-tooltip={STRINGS.tooltips.audible}
+            >
               <AudioIcon />
               <span className="sr-only">Playing audio</span>
             </span>
           )}
-          {tab.keepLoaded && <span className="tab-row__flag tab-row__flag--keep">Keep</span>}
+          {tab.closeLocked && (
+            <span
+              className="tab-row__flag tab-row__flag--locked"
+              title={STRINGS.tooltips.locked}
+              data-tooltip={STRINGS.tooltips.locked}
+            >
+              <LockIcon />
+              <span className="sr-only">Locked</span>
+            </span>
+          )}
+          {tab.keepLoaded && (
+            <span
+              className="tab-row__flag tab-row__flag--keep"
+              title={STRINGS.tooltips.keepLoaded}
+              data-tooltip={STRINGS.tooltips.keepLoaded}
+            >
+              Keep
+            </span>
+          )}
         </div>
       </button>
 
@@ -210,7 +279,8 @@ export function TabRow({
             type="button"
             className="tab-row__action"
             aria-label={`Wake ${tab.title}`}
-            title={STRINGS.sleep.wake}
+            title={STRINGS.tooltips.wake}
+            data-tooltip={STRINGS.tooltips.wake}
             onClick={() => onWake?.(tab.tabId)}
           >
             <WakeIcon />
@@ -220,7 +290,8 @@ export function TabRow({
             type="button"
             className="tab-row__action"
             aria-label={`Sleep ${tab.title}`}
-            title={STRINGS.sleep.action}
+            title={STRINGS.tooltips.sleep}
+            data-tooltip={STRINGS.tooltips.sleep}
             onClick={() => onSleep?.(tab.tabId)}
           >
             <SleepIcon />
@@ -231,7 +302,8 @@ export function TabRow({
           type="button"
           className="tab-row__action"
           aria-label={`Snooze ${tab.title}`}
-          title={STRINGS.snooze.action}
+          title={STRINGS.tooltips.snooze}
+          data-tooltip={STRINGS.tooltips.snooze}
           onClick={() => onSnooze?.(tab.tabId)}
         >
           <SnoozeIcon />
@@ -241,7 +313,12 @@ export function TabRow({
           type="button"
           className="tab-row__action tab-row__action--danger"
           aria-label={tab.closeLocked ? `Close ${tab.title} manually` : `Close ${tab.title}`}
-          title={tab.closeLocked ? STRINGS.close.manualAction : STRINGS.close.action}
+          title={tab.closeLocked ? STRINGS.tooltips.closeManual : STRINGS.tooltips.close}
+          data-tooltip={tab.closeLocked ? STRINGS.tooltips.closeManual : STRINGS.tooltips.close}
+          onMouseEnter={() => setCloseTarget(true)}
+          onMouseLeave={() => setCloseTarget(false)}
+          onFocus={() => setCloseTarget(true)}
+          onBlur={() => setCloseTarget(false)}
           onClick={() => onClose?.(tab.tabId)}
         >
           <CloseIcon />
@@ -252,6 +329,8 @@ export function TabRow({
             type="button"
             className="tab-row__action"
             aria-label={`More actions for ${tab.title}`}
+            title={STRINGS.tooltips.more}
+            data-tooltip={STRINGS.tooltips.more}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             aria-controls={menuId}

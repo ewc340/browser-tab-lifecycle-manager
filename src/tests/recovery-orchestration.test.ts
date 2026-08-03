@@ -6,19 +6,21 @@ describe("recovery close orchestration", () => {
     const order: string[] = [];
 
     const result = await executeCloseWithRecovery({
-      createRecovery: async () => {
+      createRecovery: () => {
         order.push("recovery");
-        return { id: "rec-1" };
+        return Promise.resolve({ id: "rec-1" });
       },
-      removeTab: async () => {
+      removeTab: () => {
         order.push("remove");
+        return Promise.resolve();
       },
-      appendActivity: async (recoveryId: string) => {
+      appendActivity: (recoveryId: string) => {
         order.push(`activity:${recoveryId}`);
-        return { id: "evt-1" };
+        return Promise.resolve({ id: "evt-1" });
       },
-      linkActivity: async (recoveryId: string, activityEventId: string) => {
+      linkActivity: (recoveryId: string, activityEventId: string) => {
         order.push(`link:${recoveryId}:${activityEventId}`);
+        return Promise.resolve();
       },
       onStep: (step: string) => order.push(step),
     });
@@ -33,12 +35,10 @@ describe("recovery close orchestration", () => {
     const appendActivity = vi.fn();
     await expect(
       executeCloseWithRecovery({
-        createRecovery: async () => ({ id: "rec-1" }),
-        removeTab: async () => {
-          throw new Error("remove failed");
-        },
+        createRecovery: () => Promise.resolve({ id: "rec-1" }),
+        removeTab: () => Promise.reject(new Error("remove failed")),
         appendActivity,
-        linkActivity: async () => {},
+        linkActivity: () => Promise.resolve(),
       }),
     ).rejects.toThrow("remove failed");
     expect(appendActivity).not.toHaveBeenCalled();

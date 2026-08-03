@@ -83,7 +83,7 @@ export function App() {
               <button
                 className="banner__action"
                 type="button"
-                onClick={() => void send({ type: "DISMISS_WHATS_NEW" }).then(refresh)}
+                onClick={() => void send({ type: "DISMISS_WHATS_NEW" }).then(() => refresh())}
               >
                 Dismiss
               </button>
@@ -96,7 +96,7 @@ export function App() {
             <button
               className="banner__action"
               type="button"
-              onClick={() => void send({ type: "RESUME_AUTOMATION" }).then(refresh)}
+              onClick={() => void send({ type: "RESUME_AUTOMATION" }).then(() => refresh())}
             >
               {STRINGS.settings.resumeAutomation}
             </button>
@@ -154,7 +154,7 @@ export function App() {
             <div className="error-state" role="alert">
               <p>Could not load tab data.</p>
               <p className="error-state__detail">{error}</p>
-              <button type="button" onClick={refresh} className="btn btn--primary">
+              <button type="button" onClick={() => refresh({ force: true })} className="btn btn--primary">
                 Try again
               </button>
             </div>
@@ -163,7 +163,12 @@ export function App() {
           {state !== null && (
             <>
               {activeNav === "tabs" && (
-                <TabsView state={state} now={now} onActivateTab={handleActivateTab} />
+                <TabsView
+                  state={state}
+                  now={now}
+                  onActivateTab={handleActivateTab}
+                  onRefresh={() => refresh({ force: true })}
+                />
               )}
               {activeNav === "activity" && <ActivityView />}
               {activeNav === "recovery" && <RecoveryView />}

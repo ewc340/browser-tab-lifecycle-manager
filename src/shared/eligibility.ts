@@ -80,7 +80,12 @@ export function classifyManageability(input: ManageabilityInput): Manageability 
 
   // Popups, app windows, installed PWAs and undocked DevTools are shown for visibility
   // but never automated: closing an OAuth popup mid-flow would be indefensible.
-  if (input.windowType !== undefined && input.windowType !== "normal") {
+  // Treat "unknown" like normal — Arc and some forks omit window metadata until later.
+  if (
+    input.windowType !== undefined &&
+    input.windowType !== "normal" &&
+    input.windowType !== "unknown"
+  ) {
     return {
       canDiscard: false,
       canClose: false,

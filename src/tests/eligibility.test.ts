@@ -111,6 +111,17 @@ describe("classifyManageability", () => {
     expect(result.unavailableReason).toBe("NON_NORMAL_WINDOW");
   });
 
+  it("treats unknown window type as manageable (Arc may omit window metadata)", () => {
+    const result = classifyManageability({
+      url: "https://example.com",
+      incognito: false,
+      windowType: "unknown",
+    });
+    expect(result.canDiscard).toBe(true);
+    expect(result.canClose).toBe(true);
+    expect(result.unavailableReason).toBeUndefined();
+  });
+
   it("treats about:blank with title 'about:blank' as a new-tab page (closeable, not discardable)", () => {
     const result = classifyManageability({
       url: "about:blank",

@@ -1,7 +1,7 @@
 /**
  * Main tabs view: search, filters, sorting, bulk actions, and a virtualized list.
  */
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { AppState, StateCounts } from "../../shared/types.ts";
 import {
   applyTabListQuery,
@@ -19,6 +19,7 @@ interface TabsViewProps {
   state: AppState;
   now: number;
   onActivateTab: (tabId: number) => void;
+  onRefresh: () => void;
 }
 
 type PendingBulk =
@@ -57,7 +58,7 @@ function buildBreakdown(counts: StateCounts): string {
   return parts.join(" · ");
 }
 
-export function TabsView({ state, now, onActivateTab }: TabsViewProps) {
+export function TabsView({ state, now, onActivateTab, onRefresh }: TabsViewProps) {
   const { send } = useMessaging();
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState<StateFilter>("all");
@@ -66,6 +67,7 @@ export function TabsView({ state, now, onActivateTab }: TabsViewProps) {
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [pendingBulk, setPendingBulk] = useState<PendingBulk>(null);
+  const lastSelectedTabIdRef = useRef<number | null>(null);
 
   const focusedWindowId = state.windows.find((window) => window.focused)?.windowId;
 
@@ -73,6 +75,8 @@ export function TabsView({ state, now, onActivateTab }: TabsViewProps) {
     const query: TabListQuery = { search, stateFilter, windowFilter, sort };
     return applyTabListQuery(state.tabs, query, state.extensionId, focusedWindowId);
   }, [state.tabs, search, stateFilter, windowFilter, sort, state.extensionId, focusedWindowId]);
+
+  const filteredTabIds = useMemo(() => filteredTabs.map((tab) => tab.tabId), [filteredTabs]);
 
   const entries = useMemo((): TabListEntry[] => {
     const items: TabListEntry[] = [];
@@ -85,7 +89,12 @@ export function TabsView({ state, now, onActivateTab }: TabsViewProps) {
       const windowTabs = filteredTabs.filter((tab) => tab.windowId === window.windowId);
       if (windowTabs.length === 0) continue;
 
-      const label = window.focused ? "Current window" : `Window ${windowIndex + 1}`;
+      const label =
+        window.focused
+          ? "Current window"
+          : window.type === "unknown"
+            ? "Other windows"
+            : `Window ${windowIndex + 1}`;
       items.push({
         kind: "window",
         key: `window-${window.windowId}`,
@@ -110,6 +119,36 @@ export function TabsView({ state, now, onActivateTab }: TabsViewProps) {
     });
   };
 
+  const handleToggleSelect = (tabId: number, shiftKey = false) => {
+    if (shiftKey && lastSelectedTabIdRef.current !== null) {
+      const anchorIndex = filteredTabIds.indexOf(lastSelectedTabIdRef.current);
+      const targetIndex = filteredTabIds.indexOf(tabId);
+      if (anchorIndex >= 0 && targetIndex >= 0) {
+        const start = Math.min(anchorIndex, targetIndex);
+        const end = Math.max(anchorIndex, targetIndex);
+        setSelectedIds((current) => {
+          const next = new Set(current);
+          for (let index = start; index <= end; index++) {
+            next.add(filteredTabIds[index]!);
+          }
+          return next;
+        });
+        lastSelectedTabIdRef.current = tabId;
+        return;
+      }
+    }
+
+    toggleSelect(tabId);
+    lastSelectedTabIdRef.current = tabId;
+  };
+
+  const selectAllFiltered = () => {
+    setSelectedIds(new Set(filteredTabIds));
+    if (filteredTabIds.length > 0) {
+      lastSelectedTabIdRef.current = filteredTabIds[filteredTabIds.length - 1]!;
+    }
+  };
+
   const selectedArray = [...selectedIds];
 
   const runBulk = async (action: () => Promise<unknown>) => {
@@ -127,7 +166,7 @@ export function TabsView({ state, now, onActivateTab }: TabsViewProps) {
     void runBulk(() => send({ type: "UNLOCK_TABS", tabIds: selectedArray }));
   };
   const bulkClose = () => {
-    if (selectedArray.length > 5) {
+    if (selectedArray.length >= 2) {
       setPendingBulk({ kind: "close", tabIds: selectedArray });
       return;
     }
@@ -154,7 +193,12 @@ export function TabsView({ state, now, onActivateTab }: TabsViewProps) {
           {state.counts.total} tab{state.counts.total !== 1 ? "s" : ""}
         </span>
         {breakdown.length > 0 && <span className="tabs-view__breakdown">{breakdown}</span>}
+        <button type="button" className="btn btn--ghost tabs-view__refresh" onClick={onRefresh}>
+          {STRINGS.tabsView.refreshInventory}
+        </button>
       </header>
+
+      <p className="tabs-view__inventory-note">{STRINGS.tabsView.arcInventoryNote}</p>
 
       <div className="tabs-toolbar">
         <label className="tabs-toolbar__search">
@@ -221,35 +265,50 @@ export function TabsView({ state, now, onActivateTab }: TabsViewProps) {
             onClick={() => {
               setBulkMode((current) => !current);
               setSelectedIds(new Set());
+              lastSelectedTabIdRef.current = null;
             }}
           >
-            Select
+            {bulkMode ? STRINGS.bulk.selecting : STRINGS.bulk.selectTabs}
           </button>
         </div>
       </div>
 
-      {bulkMode && selectedArray.length > 0 && (
+      {bulkMode && (
         <div className="bulk-bar" role="toolbar" aria-label="Bulk tab actions">
-          <span className="bulk-bar__count">{selectedArray.length} selected</span>
-          <button type="button" className="btn btn--ghost" onClick={() => void bulkSleep()}>
-            {STRINGS.bulk.sleep}
-          </button>
-          <button type="button" className="btn btn--ghost" onClick={() => void bulkLock()}>
-            {STRINGS.bulk.lock}
-          </button>
-          <button type="button" className="btn btn--ghost" onClick={bulkUnlock}>
-            {STRINGS.bulk.unlock}
-          </button>
-          <button type="button" className="btn btn--ghost" onClick={bulkClose}>
-            {STRINGS.bulk.close}
-          </button>
-          <button
-            type="button"
-            className="btn btn--ghost"
-            onClick={() => setSelectedIds(new Set())}
-          >
-            {STRINGS.bulk.clearSelection}
-          </button>
+          {selectedArray.length > 0 ? (
+            <>
+              <span className="bulk-bar__count">{STRINGS.bulk.selectedCount(selectedArray.length)}</span>
+              <button type="button" className="btn btn--ghost" onClick={() => void bulkSleep()}>
+                {STRINGS.bulk.sleep}
+              </button>
+              <button type="button" className="btn btn--ghost" onClick={() => void bulkLock()}>
+                {STRINGS.bulk.lock}
+              </button>
+              <button type="button" className="btn btn--ghost" onClick={bulkUnlock}>
+                {STRINGS.bulk.unlock}
+              </button>
+              <button type="button" className="btn btn--danger" onClick={bulkClose}>
+                {STRINGS.bulk.close}
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => {
+                  setSelectedIds(new Set());
+                  lastSelectedTabIdRef.current = null;
+                }}
+              >
+                {STRINGS.bulk.clearSelection}
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="bulk-bar__hint">{STRINGS.bulk.hint}</span>
+              <button type="button" className="btn btn--ghost" onClick={selectAllFiltered}>
+                {STRINGS.bulk.selectAll}
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -263,7 +322,7 @@ export function TabsView({ state, now, onActivateTab }: TabsViewProps) {
           bulkMode={bulkMode}
           selectedIds={selectedIds}
           onActivate={onActivateTab}
-          onToggleSelect={toggleSelect}
+          onToggleSelect={handleToggleSelect}
           onLock={(tabId) => void send({ type: "LOCK_TABS", tabIds: [tabId] })}
           onUnlock={(tabId) => void send({ type: "UNLOCK_TABS", tabIds: [tabId] })}
           onSleep={(tabId) => void send({ type: "SLEEP_TABS", tabIds: [tabId] })}
@@ -297,6 +356,17 @@ export function TabsView({ state, now, onActivateTab }: TabsViewProps) {
         open={pendingBulk?.kind === "close"}
         title={STRINGS.close.confirmTitle}
         body={STRINGS.close.confirmBody(pendingBulk?.tabIds.length ?? 0)}
+        {...(pendingBulk?.kind === "close"
+          ? {
+              items: pendingBulk.tabIds.map((tabId) => {
+                const tab = state.tabs.find((entry) => entry.tabId === tabId);
+                return tab?.title ?? `Tab ${tabId}`;
+              }),
+              moreItemsLabel: STRINGS.close.confirmMore(
+                Math.max(0, pendingBulk.tabIds.length - 8),
+              ),
+            }
+          : {})}
         confirmLabel={STRINGS.close.bulkAction}
         onConfirm={confirmPendingBulk}
         onCancel={() => setPendingBulk(null)}

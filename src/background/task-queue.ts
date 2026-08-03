@@ -9,11 +9,14 @@
 
 interface TaskQueue {
   push<T>(fn: () => Promise<T>): Promise<T>;
+  /** Panel reads — not blocked behind long lifecycle sweeps. */
+  pushInteractive<T>(fn: () => Promise<T>): Promise<T>;
 }
 
 function createTaskQueue(): TaskQueue {
   // Internal tail tracks when the previous task settled (always resolves, never rejects).
   let tail: Promise<void> = Promise.resolve();
+  let interactiveTail: Promise<void> = Promise.resolve();
 
   return {
     push<T>(fn: () => Promise<T>): Promise<T> {
@@ -21,6 +24,15 @@ function createTaskQueue(): TaskQueue {
       const task = tail.then(() => fn());
       // Advance the tail, absorbing any rejection so future tasks always run.
       tail = task.then(
+        () => undefined,
+        () => undefined,
+      );
+      return task;
+    },
+
+    pushInteractive<T>(fn: () => Promise<T>): Promise<T> {
+      const task = interactiveTail.then(() => fn());
+      interactiveTail = task.then(
         () => undefined,
         () => undefined,
       );

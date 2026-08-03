@@ -1,7 +1,7 @@
 /**
  * Activity feed — filters, paging, and expandable aggregate rows (M3).
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ActivityEvent, TabSnapshot } from "../../shared/types.ts";
 import {
   filterActivityEvents,
@@ -135,34 +135,40 @@ export function ActivityView() {
   const [error, setError] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
   const [extensionId, setExtensionId] = useState<string | undefined>();
+  const fetchingRef = useRef(false);
 
   const loadPage = useCallback(
-    async (reset: boolean) => {
+    (reset: boolean) => {
+      if (fetchingRef.current) return;
+      fetchingRef.current = true;
       setLoading(true);
       setError(null);
-      try {
-        const page = await send({
-          type: "GET_ACTIVITY",
-          limit: PAGE_SIZE,
-          ...(reset || nextCursor === undefined ? {} : { cursor: nextCursor }),
+      send({
+        type: "GET_ACTIVITY",
+        limit: PAGE_SIZE,
+        ...(reset || nextCursor === undefined ? {} : { cursor: nextCursor }),
+      })
+        .then(async (page) => {
+          setEvents((prev) => (reset ? page.events : [...prev, ...page.events]));
+          setNextCursor(page.nextCursor);
+          if (extensionId === undefined) {
+            const state = await send({ type: "GET_APP_STATE" });
+            setExtensionId(state.extensionId);
+          }
+        })
+        .catch((e: unknown) => {
+          setError(e instanceof Error ? e.message : "Could not load activity");
+        })
+        .finally(() => {
+          setLoading(false);
+          fetchingRef.current = false;
         });
-        setEvents((prev) => (reset ? page.events : [...prev, ...page.events]));
-        setNextCursor(page.nextCursor);
-        if (extensionId === undefined) {
-          const state = await send({ type: "GET_APP_STATE" });
-          setExtensionId(state.extensionId);
-        }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not load activity");
-      } finally {
-        setLoading(false);
-      }
     },
     [extensionId, nextCursor, send],
   );
 
   useEffect(() => {
-    void loadPage(true);
+    loadPage(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initial load only
   }, []);
 

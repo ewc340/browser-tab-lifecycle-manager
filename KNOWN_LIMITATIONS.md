@@ -4,10 +4,12 @@ Headline limitations for v0.1.0. See `docs/QUESTIONS_AND_GAPS.md` for the full l
 
 1. **No native tab-strip indicators** — Lifecycle state (locked, pending close, snoozed) appears only in the side panel, not on Chrome’s tab bar. Sleeping tabs show Chrome’s native dimmed style only.
 
-2. **Side panel only** — The control center runs in Chrome’s side panel. Toolbar click and keyboard shortcut open it; there is no independent window mode.
+2. **Side panel on Chrome; popup sidebar on Arc** — Chrome uses the native side panel. Arc does not support embedded side panels; the manager opens in a docked popup window instead.
 
 3. **Desktop Chrome only** — Manifest V3 desktop extension. No mobile, Firefox, or Safari support.
 
-4. **No cloud sync** — All data stays in the local browser profile. No account, backup service, or cross-device sync.
+4. **Arc browser sidebar tabs** — Arc keeps many tabs in its sidebar without loading them into Chromium. Extensions only see tabs that Chromium has loaded. Unloaded Arc sidebar tabs do not appear until you switch to that Space and activate the tab, and Chromium does not expose `lastAccessed` for tabs that were never loaded — so idle/background/asleep timing cannot be measured from the extension alone. A future **optional macOS companion** (native messaging host reading Arc’s local sidebar data) could list unloaded entries and estimate inactivity from URL history; see `docs/BACKLOG.md` § Arc unloaded sidebar inventory. Other Chromium browsers are unaffected.
 
-5. **Heuristic lifecycle rules** — Automatic actions use inactivity timers and host rules, not page content. Related research tabs are not grouped or resurfaced automatically (see `docs/BACKLOG.md`).
+5. **No cloud sync** — All data stays in the local browser profile. No account, backup service, or cross-device sync.
+
+6. **Heuristic lifecycle rules** — Automatic actions use inactivity timers and host rules, not page content. Related research tabs are not grouped or resurfaced automatically (see `docs/BACKLOG.md`).
