@@ -15,9 +15,15 @@ test.describe("tab row actions", () => {
     try {
       await openTestTab(panelPage, testUrl);
       await syncPanelInventory(panelPage, "E2E Sleep Target");
-      await expect(
-        panelPage.getByRole("button", { name: "Sleep E2E Sleep Target" }),
-      ).toBeVisible();
+      const sleepButton = panelPage.getByRole("button", { name: "Sleep E2E Sleep Target" });
+      await expect(sleepButton).toBeVisible();
+      await expect(sleepButton).toHaveAttribute("data-tooltip", "Put tab to sleep to free memory");
+      await sleepButton.hover();
+      await expect
+        .poll(async () =>
+          sleepButton.evaluate((el) => getComputedStyle(el, "::after").visibility),
+        )
+        .toBe("visible");
     } finally {
       await stopTestHttpServer(http);
     }
