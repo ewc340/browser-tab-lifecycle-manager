@@ -85,7 +85,12 @@ export function TabsView({ state, now, onActivateTab }: TabsViewProps) {
       const windowTabs = filteredTabs.filter((tab) => tab.windowId === window.windowId);
       if (windowTabs.length === 0) continue;
 
-      const label = window.focused ? "Current window" : `Window ${windowIndex + 1}`;
+      const label =
+        window.focused
+          ? "Current window"
+          : window.type === "unknown"
+            ? "Other windows"
+            : `Window ${windowIndex + 1}`;
       items.push({
         kind: "window",
         key: `window-${window.windowId}`,

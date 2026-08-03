@@ -92,6 +92,19 @@ async function buildAppStateFromRecords(
         .map((t) => t.tabId),
     }));
 
+  const knownWindowIds = new Set(windowViews.map((w) => w.windowId));
+  const orphanWindowIds = [...new Set(tabs.map((t) => t.windowId))].filter(
+    (id) => !knownWindowIds.has(id),
+  );
+  for (const windowId of orphanWindowIds) {
+    windowViews.push({
+      windowId,
+      focused: false,
+      type: "unknown",
+      tabIds: tabs.filter((t) => t.windowId === windowId).map((t) => t.tabId),
+    });
+  }
+
   const counts: StateCounts = {
     total: 0,
     active: 0,

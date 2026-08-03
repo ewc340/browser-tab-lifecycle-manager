@@ -78,7 +78,7 @@ export function useAppState(): UseAppStateResult {
         applyAppState(cached);
         setLoading(false);
       }
-      refresh({ preferCache: true });
+      refresh({ force: true });
     });
 
     return () => {
@@ -88,7 +88,7 @@ export function useAppState(): UseAppStateResult {
 
   useEffect(() => {
     const handleVisibility = () => {
-      if (document.visibilityState === "visible") refresh();
+      if (document.visibilityState === "visible") refresh({ force: true });
     };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);

@@ -4,6 +4,9 @@
  */
 import * as log from "../shared/log.ts";
 import { recordPanelOpenEvent } from "./panel-open-debug.ts";
+import { broadcast } from "./messaging.ts";
+import { taskQueue } from "./task-queue.ts";
+import { reconcileFromBrowser } from "./tab-repository.ts";
 import { getSession, setSession } from "./storage.ts";
 
 export const SESSION_KEY_SIDE_PANEL_FALLBACK_WINDOW = "sidePanelFallbackWindowId";
@@ -80,6 +83,34 @@ function clearRememberedPanelTab(): void {
   void chrome.storage.session.remove(SESSION_KEY_SIDE_PANEL_FALLBACK_TAB);
 }
 
+function scheduleReconcileForPanel(): void {
+  taskQueue
+    .push(async () => {
+      await reconcileFromBrowser(Date.now());
+      broadcast({ type: "APP_STATE_CHANGED" });
+    })
+    .catch((e: unknown) => log.error("panel open reconcile failed", e));
+}
+
+function positionPopupBesideBrowser(popupWindowId: number): void {
+  chrome.windows.getLastFocused({ windowTypes: ["normal"] }, (browserWin) => {
+    if (chrome.runtime.lastError || browserWin.id === undefined) return;
+    if (browserWin.id === popupWindowId) return;
+
+    const width = browserWin.width ?? POPUP_WIDTH;
+    const height = browserWin.height ?? POPUP_HEIGHT;
+    const left = (browserWin.left ?? 0) + Math.max(0, width - POPUP_WIDTH);
+    const top = browserWin.top ?? 0;
+
+    void chrome.windows.update(popupWindowId, {
+      left,
+      top,
+      height,
+      width: POPUP_WIDTH,
+    });
+  });
+}
+
 function createPanelPopupWindow(): void {
   chrome.windows.create(
     {
@@ -106,6 +137,7 @@ function createPanelPopupWindow(): void {
       }
       recordPanelOpenEvent("popup_create", `ok windowId=${popup.id}`);
       rememberPanelPopup(popup.id);
+      positionPopupBesideBrowser(popup.id);
     },
   );
 }
@@ -319,6 +351,7 @@ export function openSidePanelFromUserGesture(windowIdHint?: number): void {
     "open_gesture",
     `windowHint=${windowIdHint ?? "none"} fallback=${shouldUsePopupFallback()}`,
   );
+  scheduleReconcileForPanel();
   if (shouldUsePopupFallback()) {
     openPanelFallbackFromUserGesture();
     return;

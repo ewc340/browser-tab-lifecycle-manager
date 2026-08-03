@@ -79,7 +79,7 @@ Click **Load unpacked** (Edge may label it **Load extension**) and select the fo
 - Use the extension toolbar icon, or
 - Set / use the keyboard shortcut (`Alt+Shift+T` is suggested in the manifest; configure under **Extension shortcuts** on that browser’s extensions page).
 
-**Arc:** Arc does not support Chrome’s native side panel API. On Arc, the extension opens the manager in a **new browser tab** instead. After updating, reload the extension at `arc://extensions`, then use **Alt+Shift+T** or the toolbar icon.
+**Arc:** Arc does not support Chrome’s embedded side panel API. The manager opens in a **sidebar-style popup window** docked beside your main browser window (not a full tab). True in-browser side panels on Arc would require Arc to ship `chrome.sidePanel` support — community workarounds use the same popup approach.
 
 If the shortcut does nothing:
 
